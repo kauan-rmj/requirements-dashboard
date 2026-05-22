@@ -20,7 +20,7 @@ const PROJECTS_LIST_QUERY = `
 `;
 
 const ISSUES_QUERY = `
-  query FetchIssues($projectId: ID!) {
+  query FetchIssues($projectId: String!) {
     project(id: $projectId) {
       issues(first: 250) {
         nodes {
