@@ -2,7 +2,7 @@ import type { DashboardData, IssueNode, LinearIssue, LinearState, ProjectData, S
 
 const LINEAR_GRAPHQL_URL = 'https://api.linear.app/graphql';
 
-const PROJECTS_QUERY = `
+const PROJECTS_LIST_QUERY = `
   query FetchProjects {
     projects(first: 50) {
       nodes {
@@ -14,23 +14,30 @@ const PROJECTS_QUERY = `
             name
           }
         }
-        issues(first: 250) {
-          nodes {
+      }
+    }
+  }
+`;
+
+const ISSUES_QUERY = `
+  query FetchIssues($projectId: ID!) {
+    project(id: $projectId) {
+      issues(first: 250) {
+        nodes {
+          id
+          identifier
+          title
+          priority
+          description
+          url
+          parent {
             id
-            identifier
-            title
-            priority
-            description
-            url
-            parent {
-              id
-            }
-            state {
-              id
-              name
-              color
-              type
-            }
+          }
+          state {
+            id
+            name
+            color
+            type
           }
         }
       }
@@ -56,24 +63,56 @@ interface RawIssue {
   state: RawState;
 }
 
-interface RawProject {
+interface RawProjectSummary {
   id: string;
   name: string;
   labels: {
     nodes: { id: string; name: string }[];
   };
-  issues: {
-    nodes: RawIssue[];
-  };
 }
 
-interface GraphQLResponse {
+interface ProjectsListResponse {
   data?: {
     projects?: {
-      nodes: RawProject[];
+      nodes: RawProjectSummary[];
     };
   };
   errors?: { message: string }[];
+}
+
+interface IssuesResponse {
+  data?: {
+    project?: {
+      issues: {
+        nodes: RawIssue[];
+      };
+    };
+  };
+  errors?: { message: string }[];
+}
+
+async function gql<T>(apiKey: string, query: string, variables?: Record<string, unknown>): Promise<T> {
+  const response = await fetch(LINEAR_GRAPHQL_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: apiKey.replace(/^Bearer\s+/i, ''),
+    },
+    body: JSON.stringify({ query, variables }),
+  } satisfies RequestInit);
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Linear API ${response.status}: ${body || response.statusText}`);
+  }
+
+  const json = (await response.json()) as unknown as T & { errors?: { message: string }[] };
+
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(`Linear GraphQL error: ${json.errors.map((e) => e.message).join(', ')}`);
+  }
+
+  return json;
 }
 
 function isValidStateType(type: string): type is LinearState['type'] {
@@ -117,7 +156,6 @@ function buildTree(issues: LinearIssue[]): IssueNode[] {
       if (parent) {
         parent.childNodes.push(node);
       } else {
-        // Parent is in another project or missing — treat as root
         roots.push(node);
       }
     } else {
@@ -153,65 +191,38 @@ function computeStatusCounts(issues: LinearIssue[]): Record<string, StatusCount>
   return counts;
 }
 
-function buildProjectData(raw: RawProject): ProjectData {
-  const allIssues = raw.issues.nodes.map(parseIssue);
-  const rootIssues = buildTree(allIssues);
-  const statusCounts = computeStatusCounts(allIssues);
-  const total = allIssues.length;
-  const completed = allIssues.filter((i) => i.state.type === 'completed').length;
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-  return {
-    id: raw.id,
-    name: raw.name,
-    rootIssues,
-    allIssues,
-    statusCounts,
-    total,
-    completed,
-    pct,
-  };
-}
-
 export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
-  const response = await fetch(LINEAR_GRAPHQL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: apiKey.replace(/^Bearer\s+/i, ''),
-    },
-    body: JSON.stringify({ query: PROJECTS_QUERY }),
-  } satisfies RequestInit);
+  // Query 1: fetch all projects with labels only (low complexity)
+  const projectsRes = await gql<ProjectsListResponse>(apiKey, PROJECTS_LIST_QUERY);
+  const allProjects = projectsRes.data?.projects?.nodes ?? [];
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(`Linear API ${response.status}: ${body || response.statusText}`);
-  }
-
-  // Cast through unknown for safe typing of unvalidated API response
-  const json = (await response.json()) as unknown as GraphQLResponse;
-
-  if (json.errors && json.errors.length > 0) {
-    throw new Error(`Linear GraphQL error: ${json.errors.map((e) => e.message).join(', ')}`);
-  }
-
-  const rawProjects = json.data?.projects?.nodes ?? [];
-
-  const trackingProjects = rawProjects.filter((p) =>
+  const trackingProjects = allProjects.filter((p) =>
     p.labels.nodes.some((l) => l.name === 'Tracking'),
   );
 
   const filterIds = process.env.LINEAR_PROJECT_IDS
-    ? process.env.LINEAR_PROJECT_IDS.split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
+    ? process.env.LINEAR_PROJECT_IDS.split(',').map((s) => s.trim()).filter(Boolean)
     : null;
 
-  const filteredProjects = filterIds
+  const targetProjects = filterIds
     ? trackingProjects.filter((p) => filterIds.includes(p.id))
     : trackingProjects;
 
-  const projects = filteredProjects.map(buildProjectData);
+  // Query 2..N: fetch issues per project individually (each query stays within complexity limit)
+  const projects: ProjectData[] = await Promise.all(
+    targetProjects.map(async (p) => {
+      const issuesRes = await gql<IssuesResponse>(apiKey, ISSUES_QUERY, { projectId: p.id });
+      const rawIssues = issuesRes.data?.project?.issues.nodes ?? [];
+      const allIssues = rawIssues.map(parseIssue);
+      const rootIssues = buildTree(allIssues);
+      const statusCounts = computeStatusCounts(allIssues);
+      const total = allIssues.length;
+      const completed = allIssues.filter((i) => i.state.type === 'completed').length;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      return { id: p.id, name: p.name, rootIssues, allIssues, statusCounts, total, completed, pct };
+    }),
+  );
 
   const updatedAt = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo',
