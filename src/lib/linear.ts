@@ -8,6 +8,12 @@ const PROJECTS_QUERY = `
       nodes {
         id
         name
+        labels {
+          nodes {
+            id
+            name
+          }
+        }
         issues(first: 250) {
           nodes {
             id
@@ -53,6 +59,9 @@ interface RawIssue {
 interface RawProject {
   id: string;
   name: string;
+  labels: {
+    nodes: { id: string; name: string }[];
+  };
   issues: {
     nodes: RawIssue[];
   };
@@ -169,13 +178,14 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: apiKey,
+      Authorization: apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ query: PROJECTS_QUERY }),
   } satisfies RequestInit);
 
   if (!response.ok) {
-    throw new Error(`Linear API responded with ${response.status}: ${response.statusText}`);
+    const body = await response.text().catch(() => '');
+    throw new Error(`Linear API ${response.status}: ${body || response.statusText}`);
   }
 
   // Cast through unknown for safe typing of unvalidated API response
@@ -187,6 +197,10 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
 
   const rawProjects = json.data?.projects?.nodes ?? [];
 
+  const trackingProjects = rawProjects.filter((p) =>
+    p.labels.nodes.some((l) => l.name === 'Tracking'),
+  );
+
   const filterIds = process.env.LINEAR_PROJECT_IDS
     ? process.env.LINEAR_PROJECT_IDS.split(',')
         .map((s) => s.trim())
@@ -194,8 +208,8 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
     : null;
 
   const filteredProjects = filterIds
-    ? rawProjects.filter((p) => filterIds.includes(p.id))
-    : rawProjects;
+    ? trackingProjects.filter((p) => filterIds.includes(p.id))
+    : trackingProjects;
 
   const projects = filteredProjects.map(buildProjectData);
 
