@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RequirementsList from '@/components/RequirementsList';
 import type { DashboardData, LinearState } from '@/lib/types';
@@ -110,7 +110,7 @@ function isValidStateType(value: string | null): value is LinearState['type'] {
   return value !== null && (VALID_STATE_TYPES as string[]).includes(value);
 }
 
-export default function RequirementsPage() {
+function RequirementsPageInner() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type');
   const initialTypeFilter: LinearState['type'] | null = isValidStateType(typeParam) ? typeParam : null;
@@ -224,5 +224,13 @@ export default function RequirementsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function RequirementsPage() {
+  return (
+    <Suspense fallback={null}>
+      <RequirementsPageInner />
+    </Suspense>
   );
 }
