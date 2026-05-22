@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import RequirementsList from '@/components/RequirementsList';
-import type { DashboardData } from '@/lib/types';
+import type { DashboardData, LinearState } from '@/lib/types';
 
 function LoadingSkeleton() {
   return (
@@ -101,7 +102,19 @@ function LoadingSkeleton() {
   );
 }
 
+const VALID_STATE_TYPES: LinearState['type'][] = [
+  'triage', 'backlog', 'unstarted', 'started', 'completed', 'cancelled',
+];
+
+function isValidStateType(value: string | null): value is LinearState['type'] {
+  return value !== null && (VALID_STATE_TYPES as string[]).includes(value);
+}
+
 export default function RequirementsPage() {
+  const searchParams = useSearchParams();
+  const typeParam = searchParams.get('type');
+  const initialTypeFilter: LinearState['type'] | null = isValidStateType(typeParam) ? typeParam : null;
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -194,7 +207,7 @@ export default function RequirementsPage() {
 
       {/* Requirements list */}
       {!initialLoad && data && (
-        <RequirementsList data={data} loading={loading} />
+        <RequirementsList data={data} loading={loading} initialTypeFilter={initialTypeFilter} />
       )}
 
       {/* Empty state */}

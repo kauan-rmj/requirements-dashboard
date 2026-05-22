@@ -1,4 +1,4 @@
-import type { DashboardData, IssueNode, LinearIssue, LinearState, ProjectData, StatusCount } from './types';
+import type { DashboardData, IssueNode, LinearIssue, LinearState, ProjectData, StatusCount, TimelinePoint } from './types';
 
 const LINEAR_GRAPHQL_URL = 'https://api.linear.app/graphql';
 
@@ -30,6 +30,9 @@ const ISSUES_QUERY = `
           priority
           description
           url
+          createdAt
+          completedAt
+          canceledAt
           parent {
             id
           }
@@ -59,6 +62,9 @@ interface RawIssue {
   priority: number;
   description?: string | null;
   url?: string;
+  createdAt: string;
+  completedAt?: string | null;
+  canceledAt?: string | null;
   parent?: { id: string } | null;
   state: RawState;
 }
@@ -135,6 +141,9 @@ function parseIssue(raw: RawIssue): LinearIssue {
       type: stateType,
     },
     parent: raw.parent ?? null,
+    createdAt: raw.createdAt,
+    completedAt: raw.completedAt ?? null,
+    canceledAt: raw.canceledAt ?? null,
   };
 }
 
@@ -191,6 +200,45 @@ function computeStatusCounts(issues: LinearIssue[]): Record<string, StatusCount>
   return counts;
 }
 
+export function computeTimeline(projects: ProjectData[], weeks: number): TimelinePoint[] {
+  // Generate `weeks` Sunday week-end dates going back from today
+  const now = new Date();
+  // Move to the most recent Sunday (or today if already Sunday)
+  const dayOfWeek = now.getDay(); // 0 = Sunday
+  const mostRecentSunday = new Date(now);
+  mostRecentSunday.setDate(now.getDate() - dayOfWeek);
+  mostRecentSunday.setHours(23, 59, 59, 999);
+
+  const weekEnds: Date[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const d = new Date(mostRecentSunday);
+    d.setDate(mostRecentSunday.getDate() - i * 7);
+    weekEnds.push(d);
+  }
+
+  const points: TimelinePoint[] = weekEnds.map((weekEnd) => {
+    const dd = String(weekEnd.getDate()).padStart(2, '0');
+    const mm = String(weekEnd.getMonth() + 1).padStart(2, '0');
+    const weekLabel = `${dd}/${mm}`;
+
+    const projectPoints = projects.map((project) => {
+      const total = project.allIssues.filter(
+        (issue) => new Date(issue.createdAt) <= weekEnd,
+      ).length;
+      const completed = project.allIssues.filter(
+        (issue) =>
+          issue.completedAt != null && new Date(issue.completedAt) <= weekEnd,
+      ).length;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return { id: project.id, name: project.name, total, completed, pct };
+    });
+
+    return { weekLabel, weekEnd, projects: projectPoints };
+  });
+
+  return points;
+}
+
 export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
   // Query 1: fetch all projects with labels only (low complexity)
   const projectsRes = await gql<ProjectsListResponse>(apiKey, PROJECTS_LIST_QUERY);
@@ -234,5 +282,7 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
     second: '2-digit',
   }).format(new Date());
 
-  return { projects, updatedAt };
+  const timeline = computeTimeline(projects, 10);
+
+  return { projects, updatedAt, timeline };
 }

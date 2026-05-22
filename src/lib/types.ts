@@ -14,6 +14,21 @@ export interface LinearIssue {
   url?: string;
   state: LinearState;
   parent?: { id: string } | null;
+  createdAt: string;
+  completedAt?: string | null;
+  canceledAt?: string | null;
+}
+
+export interface TimelinePoint {
+  weekLabel: string;
+  weekEnd: Date;
+  projects: {
+    id: string;
+    name: string;
+    total: number;
+    completed: number;
+    pct: number;
+  }[];
 }
 
 export interface IssueNode extends LinearIssue {
@@ -41,4 +56,5 @@ export interface ProjectData {
 export interface DashboardData {
   projects: ProjectData[];
   updatedAt: string;
+  timeline: TimelinePoint[];
 }

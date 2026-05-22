@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { RefreshCw } from 'lucide-react';
 import type { DashboardData, StatusCount } from '@/lib/types';
 
@@ -19,6 +20,7 @@ function pctColor(pct: number): string {
 }
 
 export default function StatusChart({ data, onRefresh, loading }: StatusChartProps) {
+  const router = useRouter();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -261,7 +263,9 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                             background: sc.color,
                             position: 'relative',
                             flexShrink: 0,
+                            cursor: 'pointer',
                           }}
+                          onClick={() => router.push(`/requirements?type=${sc.type}`)}
                         >
                           <div className="bar-tooltip">
                             <span style={{ color: sc.color, marginRight: '4px' }}>■</span>

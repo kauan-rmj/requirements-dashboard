@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import StatusChart from '@/components/StatusChart';
+import TimelineChart from '@/components/TimelineChart';
 import type { DashboardData } from '@/lib/types';
 
 function SkeletonRow() {
@@ -212,7 +213,12 @@ export default function DashboardPage() {
 
       {/* Chart */}
       {!initialLoad && data && (
-        <StatusChart data={data} onRefresh={fetchData} loading={loading} />
+        <>
+          <StatusChart data={data} onRefresh={fetchData} loading={loading} />
+          <div style={{ marginTop: '24px' }}>
+            <TimelineChart data={data.timeline} />
+          </div>
+        </>
       )}
 
       {/* Empty state after loading */}

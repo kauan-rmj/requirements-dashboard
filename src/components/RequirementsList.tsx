@@ -7,6 +7,7 @@ import type { DashboardData, IssueNode, LinearState } from '@/lib/types';
 interface RequirementsListProps {
   data: DashboardData;
   loading: boolean;
+  initialTypeFilter?: LinearState['type'] | null;
 }
 
 type CollapsedSet = Set<string>;
@@ -173,9 +174,9 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
   );
 }
 
-export default function RequirementsList({ data, loading }: RequirementsListProps) {
+export default function RequirementsList({ data, loading, initialTypeFilter }: RequirementsListProps) {
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<LinearState['type'] | null>(null);
+  const [typeFilter, setTypeFilter] = useState<LinearState['type'] | null>(initialTypeFilter ?? null);
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
   const [collapsedIssues, setCollapsedIssues] = useState<Set<string>>(() => {
     // Start with all depth-1+ nodes collapsed (just root nodes expanded)
