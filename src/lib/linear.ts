@@ -178,7 +178,7 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
+      Authorization: apiKey.replace(/^Bearer\s+/i, ''),
     },
     body: JSON.stringify({ query: PROJECTS_QUERY }),
   } satisfies RequestInit);
