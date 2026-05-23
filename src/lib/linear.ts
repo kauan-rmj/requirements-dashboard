@@ -1,4 +1,4 @@
-import type { DashboardData, IssueNode, LinearIssue, LinearState, ProjectData, StatusCount, TimelinePoint } from './types';
+import type { DashboardData, DayPoint, IssueNode, LinearIssue, LinearState, ProjectData, StatusCount, TimelinePoint } from './types';
 
 const LINEAR_GRAPHQL_URL = 'https://api.linear.app/graphql';
 
@@ -33,6 +33,7 @@ const ISSUES_QUERY = `
           createdAt
           completedAt
           canceledAt
+          startedAt
           parent {
             id
           }
@@ -65,6 +66,7 @@ interface RawIssue {
   createdAt: string;
   completedAt?: string | null;
   canceledAt?: string | null;
+  startedAt?: string | null;
   parent?: { id: string } | null;
   state: RawState;
 }
@@ -144,6 +146,7 @@ function parseIssue(raw: RawIssue): LinearIssue {
     createdAt: raw.createdAt,
     completedAt: raw.completedAt ?? null,
     canceledAt: raw.canceledAt ?? null,
+    startedAt: raw.startedAt ?? null,
   };
 }
 
@@ -198,6 +201,112 @@ function computeStatusCounts(issues: LinearIssue[]): Record<string, StatusCount>
   }
 
   return counts;
+}
+
+export function computeDailyTimeline(issues: LinearIssue[], daysBack: number | null): DayPoint[] {
+  const now = new Date();
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  let startDate: Date;
+  if (daysBack === null) {
+    if (issues.length === 0) {
+      startDate = new Date(endOfToday);
+      startDate.setDate(endOfToday.getDate() - 29);
+    } else {
+      const earliest = issues.reduce<Date>((min, issue) => {
+        const d = new Date(issue.createdAt);
+        return d < min ? d : min;
+      }, new Date(issues[0].createdAt));
+      startDate = new Date(earliest);
+      startDate.setHours(0, 0, 0, 0);
+    }
+  } else {
+    startDate = new Date(now);
+    startDate.setDate(now.getDate() - (daysBack - 1));
+    startDate.setHours(0, 0, 0, 0);
+  }
+
+  // Build daily points
+  const dailyPoints: DayPoint[] = [];
+  const cursor = new Date(startDate);
+
+  while (cursor <= endOfToday) {
+    const startOfDay = new Date(cursor);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(cursor);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const dd = String(cursor.getDate()).padStart(2, '0');
+    const mm = String(cursor.getMonth() + 1).padStart(2, '0');
+    const dateLabel = `${dd}/${mm}`;
+
+    const scoped = issues.filter((issue) => new Date(issue.createdAt) <= endOfDay).length;
+    const completed = issues.filter(
+      (issue) => issue.completedAt != null && new Date(issue.completedAt) <= endOfDay,
+    ).length;
+    const inProgress = issues.filter((issue) => {
+      if (issue.startedAt == null) return false;
+      if (new Date(issue.startedAt) > endOfDay) return false;
+      if (issue.completedAt != null && new Date(issue.completedAt) <= endOfDay) return false;
+      if (issue.canceledAt != null && new Date(issue.canceledAt) <= endOfDay) return false;
+      return true;
+    }).length;
+    const newScoped = issues.filter(
+      (issue) => new Date(issue.createdAt) >= startOfDay && new Date(issue.createdAt) <= endOfDay,
+    ).length;
+
+    dailyPoints.push({
+      date: new Date(cursor),
+      dateLabel,
+      scoped,
+      completed,
+      inProgress,
+      newScoped,
+    });
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Aggregate to weekly if range > 90 days
+  if (dailyPoints.length > 90) {
+    const weekMap = new Map<string, DayPoint>();
+
+    for (const point of dailyPoints) {
+      const d = new Date(point.date);
+      // Get Sunday of the week containing this date
+      const dayOfWeek = d.getDay(); // 0 = Sunday
+      const sunday = new Date(d);
+      sunday.setDate(d.getDate() - dayOfWeek);
+      sunday.setHours(0, 0, 0, 0);
+      const key = sunday.toISOString().slice(0, 10);
+
+      const existing = weekMap.get(key);
+      if (!existing) {
+        const dd = String(sunday.getDate()).padStart(2, '0');
+        const mm = String(sunday.getMonth() + 1).padStart(2, '0');
+        weekMap.set(key, {
+          date: new Date(sunday),
+          dateLabel: `${dd}/${mm}`,
+          scoped: point.scoped,
+          completed: point.completed,
+          inProgress: point.inProgress,
+          newScoped: point.newScoped,
+        });
+      } else {
+        // For cumulative fields: take the latest (last point in the week wins)
+        existing.scoped = point.scoped;
+        existing.completed = point.completed;
+        existing.inProgress = point.inProgress;
+        // For daily sum: accumulate
+        existing.newScoped += point.newScoped;
+      }
+    }
+
+    return Array.from(weekMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
+  }
+
+  return dailyPoints;
 }
 
 export function computeTimeline(projects: ProjectData[], weeks: number): TimelinePoint[] {
