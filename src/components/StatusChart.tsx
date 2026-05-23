@@ -50,7 +50,7 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
       if (existing) {
         existing.globalCount += sc.count;
       } else {
-        legendMap.set(stateId, { ...sc, globalCount: sc.count });
+        legendMap.set(stateId, { ...sc, globalCount: sc.count, id: stateId });
       }
       grandTotal += sc.count;
     }
@@ -202,9 +202,9 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
           </div>
         )}
         {data.projects.map((project, idx) => {
-          const statusEntries = Object.values(project.statusCounts).sort(
-            (a, b) => (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99),
-          );
+          const statusEntries = Object.entries(project.statusCounts)
+            .map(([id, sc]) => ({ ...sc, id }))
+            .sort((a, b) => (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99));
 
           return (
             <div key={project.id}>
