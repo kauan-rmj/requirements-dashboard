@@ -41,7 +41,7 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
     cancelled: 5,
   };
 
-  const legendMap = new Map<string, StatusCount & { globalCount: number }>();
+  const legendMap = new Map<string, StatusCount & { globalCount: number; id: string }>();
   let grandTotal = 0;
 
   for (const project of data.projects) {
