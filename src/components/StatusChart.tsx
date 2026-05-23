@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw } from 'lucide-react';
 import type { DashboardData, StatusCount } from '@/lib/types';
@@ -22,6 +22,7 @@ function pctColor(pct: number): string {
 export default function StatusChart({ data, onRefresh, loading }: StatusChartProps) {
   const router = useRouter();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [hoveredStateId, setHoveredStateId] = useState<string | null>(null);
 
   useEffect(() => {
     timerRef.current = setInterval(onRefresh, AUTO_REFRESH_MS);
@@ -147,10 +148,20 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
         >
           {legendItems.map((item) => {
             const pct = grandTotal > 0 ? Math.round((item.globalCount / grandTotal) * 100) : 0;
+            const dimmed = hoveredStateId !== null && hoveredStateId !== item.id;
             return (
               <div
                 key={`${item.name}-${item.type}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  opacity: dimmed ? 0.25 : 1,
+                  transition: 'opacity 150ms ease',
+                  cursor: 'default',
+                }}
+                onMouseEnter={() => setHoveredStateId(item.id)}
+                onMouseLeave={() => setHoveredStateId(null)}
               >
                 <div
                   style={{
@@ -166,6 +177,9 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                 </span>
                 <span style={{ fontSize: '11px', color: '#555' }}>
                   {pct}%
+                </span>
+                <span style={{ fontSize: '11px', color: '#444' }}>
+                  ({item.globalCount})
                 </span>
               </div>
             );
@@ -254,6 +268,7 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                     statusEntries.map((sc) => {
                       const segPct = (sc.count / project.total) * 100;
                       if (segPct < 0.5) return null;
+                      const dimmed = hoveredStateId !== null && hoveredStateId !== sc.id;
                       return (
                         <div
                           key={sc.name}
@@ -264,12 +279,17 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                             position: 'relative',
                             flexShrink: 0,
                             cursor: 'pointer',
+                            opacity: dimmed ? 0.2 : 1,
+                            transition: 'opacity 150ms ease, filter 150ms ease',
+                            filter: hoveredStateId === sc.id ? 'brightness(1.15)' : 'none',
                           }}
+                          onMouseEnter={() => setHoveredStateId(sc.id)}
+                          onMouseLeave={() => setHoveredStateId(null)}
                           onClick={() => router.push(`/requirements?type=${sc.type}`)}
                         >
                           <div className="bar-tooltip">
                             <span style={{ color: sc.color, marginRight: '4px' }}>■</span>
-                            {sc.name}: {sc.count} ({Math.round(segPct)}%)
+                            {sc.name}: {sc.count} issues ({Math.round(segPct)}%)
                           </div>
                         </div>
                       );
