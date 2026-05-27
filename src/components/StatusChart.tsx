@@ -22,7 +22,7 @@ function pctColor(pct: number): string {
 export default function StatusChart({ data, onRefresh, loading }: StatusChartProps) {
   const router = useRouter();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [hoveredStateId, setHoveredStateId] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<{ projectId: string; stateId: string } | null>(null);
 
   useEffect(() => {
     timerRef.current = setInterval(onRefresh, AUTO_REFRESH_MS);
@@ -148,7 +148,7 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
         >
           {legendItems.map((item) => {
             const pct = grandTotal > 0 ? Math.round((item.globalCount / grandTotal) * 100) : 0;
-            const dimmed = hoveredStateId !== null && hoveredStateId !== item.id;
+            const dimmed = hovered !== null && hovered.stateId !== item.id;
             return (
               <div
                 key={`${item.name}-${item.type}`}
@@ -160,8 +160,8 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                   transition: 'opacity 150ms ease',
                   cursor: 'default',
                 }}
-                onMouseEnter={() => setHoveredStateId(item.id)}
-                onMouseLeave={() => setHoveredStateId(null)}
+                onMouseEnter={() => setHovered({ projectId: '', stateId: item.id })}
+                onMouseLeave={() => setHovered(null)}
               >
                 <div
                   style={{
@@ -268,29 +268,41 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                     statusEntries.map((sc) => {
                       const segPct = (sc.count / project.total) * 100;
                       if (segPct < 0.5) return null;
-                      const dimmed = hoveredStateId !== null && hoveredStateId !== sc.id;
+                      const isThisBar = hovered?.projectId === project.id;
+                      const isActive = isThisBar && hovered?.stateId === sc.id;
+                      const dimmed = isThisBar && hovered?.stateId !== sc.id;
                       return (
                         <div
                           key={sc.name}
-                          className="bar-segment"
                           style={{
                             width: `${segPct}%`,
                             background: sc.color,
-                            position: 'relative',
                             flexShrink: 0,
                             cursor: 'pointer',
                             opacity: dimmed ? 0.2 : 1,
                             transition: 'opacity 150ms ease, filter 150ms ease',
-                            filter: hoveredStateId === sc.id ? 'brightness(1.15)' : 'none',
+                            filter: isActive ? 'brightness(1.15)' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
                           }}
-                          onMouseEnter={() => setHoveredStateId(sc.id)}
-                          onMouseLeave={() => setHoveredStateId(null)}
+                          onMouseEnter={() => setHovered({ projectId: project.id, stateId: sc.id })}
+                          onMouseLeave={() => setHovered(null)}
                           onClick={() => router.push(`/requirements?type=${sc.type}`)}
                         >
-                          <div className="bar-tooltip">
-                            <span style={{ color: sc.color, marginRight: '4px' }}>■</span>
-                            {sc.name}: {sc.count} issues ({Math.round(segPct)}%)
-                          </div>
+                          {isActive && segPct >= 8 && (
+                            <span style={{
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              color: 'rgba(0,0,0,0.65)',
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap',
+                              userSelect: 'none',
+                            }}>
+                              {Math.round(segPct)}%
+                            </span>
+                          )}
                         </div>
                       );
                     })
