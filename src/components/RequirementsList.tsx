@@ -13,14 +13,20 @@ interface RequirementsListProps {
 
 type CollapsedSet = Set<string>;
 
+const PRIORITY_LEVELS = [
+  { value: 1, label: 'Urgent',      color: '#ef4444' },
+  { value: 2, label: 'High',        color: '#f87171' },
+  { value: 3, label: 'Medium',      color: '#fca5a5' },
+  { value: 4, label: 'Low',         color: '#cccccc' },
+  { value: 0, label: 'No priority', color: '#6b7280' },
+] as const;
+
+const PRIORITY_COLOR: Record<number, string> = Object.fromEntries(
+  PRIORITY_LEVELS.map((p) => [p.value, p.color]),
+);
+
 function priorityColor(priority: number): string {
-  switch (priority) {
-    case 1: return '#f87171'; // Urgent
-    case 2: return '#fb923c'; // High
-    case 3: return '#fbbf24'; // Medium
-    case 4: return '#60a5fa'; // Low
-    default: return '#6b7280'; // No priority
-  }
+  return PRIORITY_COLOR[priority] ?? '#6b7280';
 }
 
 const TYPE_ORDER: Record<string, number> = {
@@ -566,11 +572,43 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
           </button>
         )}
 
-        {loading && (
-          <span style={{ fontSize: '12px', color: '#555', marginLeft: 'auto' }}>
-            Refreshing...
-          </span>
-        )}
+        {/* Priority legend */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginLeft: 'auto',
+            flexWrap: 'nowrap',
+          }}
+        >
+          <span style={{ fontSize: '11px', color: '#444', flexShrink: 0 }}>Priority:</span>
+          {PRIORITY_LEVELS.map((p) => (
+            <div
+              key={p.value}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+              title={p.label}
+            >
+              <div
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: p.color,
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: '11px', color: p.color, whiteSpace: 'nowrap' }}>
+                {p.label}
+              </span>
+            </div>
+          ))}
+          {loading && (
+            <span style={{ fontSize: '12px', color: '#555', marginLeft: '8px' }}>
+              Refreshing...
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Content */}
