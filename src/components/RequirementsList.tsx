@@ -13,6 +13,16 @@ interface RequirementsListProps {
 
 type CollapsedSet = Set<string>;
 
+function priorityColor(priority: number): string {
+  switch (priority) {
+    case 1: return '#f87171'; // Urgent
+    case 2: return '#fb923c'; // High
+    case 3: return '#fbbf24'; // Medium
+    case 4: return '#60a5fa'; // Low
+    default: return '#6b7280'; // No priority
+  }
+}
+
 const TYPE_ORDER: Record<string, number> = {
   triage: 0,
   backlog: 1,
@@ -264,11 +274,34 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
             ))}
         </div>
 
+        {/* Status */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              background: node.state.color,
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: '11px', color: '#666', whiteSpace: 'nowrap' }}>
+            {node.state.name}
+          </span>
+        </div>
+
         {/* Title */}
         <span
           style={{
             fontSize: '13px',
-            color: node.state.color,
+            color: priorityColor(node.priority),
             flex: 1,
             overflow: 'hidden',
             textOverflow: 'ellipsis',

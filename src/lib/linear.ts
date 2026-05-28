@@ -182,11 +182,14 @@ function buildTree(issues: LinearIssue[]): IssueNode[] {
     }
   }
 
-  const sortByIdentifier = (a: IssueNode, b: IssueNode) =>
-    a.identifier.localeCompare(b.identifier, undefined, { numeric: true });
+  const sortByPriority = (a: IssueNode, b: IssueNode) => {
+    const pa = a.priority === 0 ? 99 : a.priority;
+    const pb = b.priority === 0 ? 99 : b.priority;
+    return pa - pb;
+  };
 
   const sortRecursive = (nodes: IssueNode[]): IssueNode[] => {
-    nodes.sort(sortByIdentifier);
+    nodes.sort(sortByPriority);
     for (const node of nodes) {
       node.childNodes = sortRecursive(node.childNodes);
     }
