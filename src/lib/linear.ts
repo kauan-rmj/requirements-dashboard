@@ -47,6 +47,7 @@ const ISSUES_QUERY = `
             name
             color
             type
+            position
           }
         }
       }
@@ -59,6 +60,7 @@ interface RawState {
   name: string;
   color: string;
   type: string;
+  position: number;
 }
 
 interface RawIssue {
@@ -147,6 +149,7 @@ function parseIssue(raw: RawIssue): LinearIssue {
       name: raw.state.name,
       color: raw.state.color,
       type: stateType,
+      position: raw.state.position,
     },
     parent: raw.parent ?? null,
     assignee: raw.assignee ?? null,
@@ -203,9 +206,9 @@ function computeStatusCounts(issues: LinearIssue[]): Record<string, StatusCount>
   const counts: Record<string, StatusCount> = {};
 
   for (const issue of issues) {
-    const { id, name, color, type } = issue.state;
+    const { id, name, color, type, position } = issue.state;
     if (!counts[id]) {
-      counts[id] = { count: 0, color, name, type };
+      counts[id] = { count: 0, color, name, type, position };
     }
     counts[id].count += 1;
   }

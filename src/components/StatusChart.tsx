@@ -31,16 +31,6 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
     };
   }, [onRefresh]);
 
-  // Build global legend: unique states across all projects, sorted by type order
-  const typeOrder: Record<string, number> = {
-    triage: 0,
-    backlog: 1,
-    unstarted: 2,
-    started: 3,
-    completed: 4,
-    cancelled: 5,
-  };
-
   const legendMap = new Map<string, StatusCount & { globalCount: number; id: string }>();
   let grandTotal = 0;
 
@@ -56,12 +46,9 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
     }
   }
 
-  const stateSort = (a: { type: string; name: string }, b: { type: string; name: string }) => {
-    const tDiff = (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99);
-    return tDiff !== 0 ? tDiff : a.name.localeCompare(b.name);
-  };
-
-  const legendItems = Array.from(legendMap.values()).sort(stateSort);
+  const legendItems = Array.from(legendMap.values()).sort(
+    (a, b) => (a.position ?? 0) - (b.position ?? 0),
+  );
 
   return (
     <div
@@ -207,7 +194,7 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
         {data.projects.map((project, idx) => {
           const statusEntries = Object.entries(project.statusCounts)
             .map(([id, sc]) => ({ ...sc, id }))
-            .sort(stateSort);
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
           return (
             <div key={project.id}>

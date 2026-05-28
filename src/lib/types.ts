@@ -3,6 +3,7 @@ export interface LinearState {
   name: string;
   color: string;
   type: 'triage' | 'backlog' | 'unstarted' | 'started' | 'completed' | 'cancelled';
+  position: number;
 }
 
 export interface LinearAssignee {
@@ -57,6 +58,7 @@ export interface StatusCount {
   color: string;
   name: string;
   type: LinearState['type'];
+  position: number;
 }
 
 export interface ProjectData {
