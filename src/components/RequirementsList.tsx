@@ -205,9 +205,10 @@ function filterNode(
   query: string,
   statusFilter: Set<string>,
   assigneeFilter: Set<string>,
+  priorityFilter: Set<string>,
 ): IssueNode | null {
   const filteredChildren = node.childNodes
-    .map((child) => filterNode(child, query, statusFilter, assigneeFilter))
+    .map((child) => filterNode(child, query, statusFilter, assigneeFilter, priorityFilter))
     .filter((c): c is IssueNode => c !== null);
 
   const selfMatchesSearch =
@@ -217,7 +218,9 @@ function filterNode(
   const selfMatchesStatus = statusFilter.size === 0 || statusFilter.has(node.state.id);
   const selfMatchesAssignee =
     assigneeFilter.size === 0 || (node.assignee != null && assigneeFilter.has(node.assignee.id));
-  const selfMatches = selfMatchesSearch && selfMatchesStatus && selfMatchesAssignee;
+  const selfMatchesPriority =
+    priorityFilter.size === 0 || priorityFilter.has(String(node.priority));
+  const selfMatches = selfMatchesSearch && selfMatchesStatus && selfMatchesAssignee && selfMatchesPriority;
 
   if (selfMatches || filteredChildren.length > 0) {
     return {
@@ -403,6 +406,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
   });
 
   const [assigneeFilter, setAssigneeFilter] = useState<Set<string>>(new Set());
+  const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set());
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(
     () => new Set(data.projects.map((p) => p.id)),
@@ -413,12 +417,12 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
     return data.projects
       .map((project) => {
         const filteredRoots = project.rootIssues
-          .map((node) => filterNode(node, search, statusFilter, assigneeFilter))
+          .map((node) => filterNode(node, search, statusFilter, assigneeFilter, priorityFilter))
           .filter((n): n is IssueNode => n !== null);
         return { ...project, rootIssues: filteredRoots };
       })
       .filter((p) => p.rootIssues.length > 0);
-  }, [data, search, statusFilter, assigneeFilter]);
+  }, [data, search, statusFilter, assigneeFilter, priorityFilter]);
 
   const toggleProject = (id: string) => {
     setCollapsedProjects((prev) => {
@@ -438,7 +442,8 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
     });
   };
 
-  const hasActiveFilters = search !== '' || statusFilter.size > 0 || assigneeFilter.size > 0;
+  const hasActiveFilters =
+    search !== '' || statusFilter.size > 0 || assigneeFilter.size > 0 || priorityFilter.size > 0;
   const hasResults = filteredProjects.length > 0;
 
   const statusOptions: MultiSelectOption[] = allStatuses.map((s) => ({
@@ -450,6 +455,12 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
   const assigneeOptions: MultiSelectOption[] = allAssignees.map((a) => ({
     value: a.id,
     label: a.name,
+  }));
+
+  const priorityOptions: MultiSelectOption[] = PRIORITY_LEVELS.map((p) => ({
+    value: String(p.value),
+    label: p.label,
+    color: p.color,
   }));
 
   return (
@@ -546,6 +557,14 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
           />
         )}
 
+        {/* Priority multi-select */}
+        <MultiSelect
+          placeholder="All priorities"
+          options={priorityOptions}
+          selected={priorityFilter}
+          onChange={setPriorityFilter}
+        />
+
         {/* Clear */}
         {hasActiveFilters && (
           <button
@@ -553,6 +572,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
               setSearch('');
               setStatusFilter(new Set());
               setAssigneeFilter(new Set());
+              setPriorityFilter(new Set());
             }}
             style={{
               padding: '6px 10px',
@@ -572,43 +592,11 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
           </button>
         )}
 
-        {/* Priority legend */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            marginLeft: 'auto',
-            flexWrap: 'nowrap',
-          }}
-        >
-          <span style={{ fontSize: '11px', color: '#444', flexShrink: 0 }}>Priority:</span>
-          {PRIORITY_LEVELS.map((p) => (
-            <div
-              key={p.value}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
-              title={p.label}
-            >
-              <div
-                style={{
-                  width: '7px',
-                  height: '7px',
-                  borderRadius: '50%',
-                  background: p.color,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: '11px', color: p.color, whiteSpace: 'nowrap' }}>
-                {p.label}
-              </span>
-            </div>
-          ))}
-          {loading && (
-            <span style={{ fontSize: '12px', color: '#555', marginLeft: '8px' }}>
-              Refreshing...
-            </span>
-          )}
-        </div>
+        {loading && (
+          <span style={{ fontSize: '12px', color: '#555', marginLeft: 'auto' }}>
+            Refreshing...
+          </span>
+        )}
       </div>
 
       {/* Content */}
