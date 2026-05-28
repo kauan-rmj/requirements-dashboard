@@ -46,9 +46,15 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
     }
   }
 
-  const legendItems = Array.from(legendMap.values()).sort(
-    (a, b) => (a.position ?? 0) - (b.position ?? 0),
-  );
+  const typeOrder: Record<string, number> = {
+    triage: 0, backlog: 1, unstarted: 2, started: 3, completed: 4, cancelled: 5,
+  };
+  const stateSort = (a: StatusCount, b: StatusCount) => {
+    const tDiff = (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99);
+    return tDiff !== 0 ? tDiff : (a.position ?? 0) - (b.position ?? 0);
+  };
+
+  const legendItems = Array.from(legendMap.values()).sort(stateSort);
 
   return (
     <div
@@ -194,7 +200,7 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
         {data.projects.map((project, idx) => {
           const statusEntries = Object.entries(project.statusCounts)
             .map(([id, sc]) => ({ ...sc, id }))
-            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            .sort(stateSort);
 
           return (
             <div key={project.id}>
