@@ -118,8 +118,10 @@ function IssueItem({ issue, dim }: { issue: IssueWithProject; dim?: boolean }) {
 }
 
 function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
+  const [imgError, setImgError] = useState(false);
   const bg = avatarBg(assignee.name);
   const hasActive = assignee.current.length > 0;
+  const showAvatar = assignee.avatarUrl && !imgError;
 
   return (
     <div
@@ -141,11 +143,12 @@ function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
           borderBottom: '1px solid #282828',
         }}
       >
-        {assignee.avatarUrl ? (
+        {showAvatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={assignee.avatarUrl}
+            src={assignee.avatarUrl!}
             alt={assignee.name}
+            onError={() => setImgError(true)}
             style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0 }}
           />
         ) : (
