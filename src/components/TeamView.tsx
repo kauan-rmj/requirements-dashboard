@@ -66,7 +66,12 @@ function buildAssigneeData(data: DashboardData): AssigneeData[] {
       const completedIssues = issues.filter((i) => i.state.type === 'completed').length;
       return { id, name, avatarUrl, current, recent, totalIssues: issues.length, completedIssues };
     })
-    .sort((a, b) => b.totalIssues - a.totalIssues);
+    .sort((a, b) => {
+      const aActive = a.current.length > 0 ? 0 : 1;
+      const bActive = b.current.length > 0 ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return b.totalIssues - a.totalIssues;
+    });
 }
 
 function IssueItem({ issue, dim }: { issue: IssueWithProject; dim?: boolean }) {
