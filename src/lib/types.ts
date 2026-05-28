@@ -5,6 +5,12 @@ export interface LinearState {
   type: 'triage' | 'backlog' | 'unstarted' | 'started' | 'completed' | 'cancelled';
 }
 
+export interface LinearAssignee {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+
 export interface LinearIssue {
   id: string;
   identifier: string;
@@ -14,6 +20,7 @@ export interface LinearIssue {
   url?: string;
   state: LinearState;
   parent?: { id: string } | null;
+  assignee?: LinearAssignee | null;
   createdAt: string;
   completedAt?: string | null;
   canceledAt?: string | null;

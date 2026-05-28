@@ -37,6 +37,11 @@ const ISSUES_QUERY = `
           parent {
             id
           }
+          assignee {
+            id
+            name
+            avatarUrl
+          }
           state {
             id
             name
@@ -68,6 +73,7 @@ interface RawIssue {
   canceledAt?: string | null;
   startedAt?: string | null;
   parent?: { id: string } | null;
+  assignee?: { id: string; name: string; avatarUrl?: string | null } | null;
   state: RawState;
 }
 
@@ -143,6 +149,7 @@ function parseIssue(raw: RawIssue): LinearIssue {
       type: stateType,
     },
     parent: raw.parent ?? null,
+    assignee: raw.assignee ?? null,
     createdAt: raw.createdAt,
     completedAt: raw.completedAt ?? null,
     canceledAt: raw.canceledAt ?? null,

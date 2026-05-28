@@ -30,24 +30,29 @@ const STATE_TYPE_ORDER: LinearState['type'][] = [
   'cancelled',
 ];
 
-function matchesSearch(node: IssueNode, query: string): boolean {
-  const q = query.toLowerCase();
-  if (node.identifier.toLowerCase().includes(q)) return true;
-  if (node.title.toLowerCase().includes(q)) return true;
-  return node.childNodes.some((child) => matchesSearch(child, q));
-}
-
-function filterNode(node: IssueNode, query: string, typeFilter: LinearState['type'] | null): IssueNode | null {
+function filterNode(
+  node: IssueNode,
+  query: string,
+  typeFilter: LinearState['type'] | null,
+  assigneeFilter: string | null,
+): IssueNode | null {
   const filteredChildren = node.childNodes
-    .map((child) => filterNode(child, query, typeFilter))
+    .map((child) => filterNode(child, query, typeFilter, assigneeFilter))
     .filter((c): c is IssueNode => c !== null);
 
-  const selfMatchesSearch = query === '' || node.identifier.toLowerCase().includes(query.toLowerCase()) || node.title.toLowerCase().includes(query.toLowerCase());
+  const selfMatchesSearch =
+    query === '' ||
+    node.identifier.toLowerCase().includes(query.toLowerCase()) ||
+    node.title.toLowerCase().includes(query.toLowerCase());
   const selfMatchesType = typeFilter === null || node.state.type === typeFilter;
-  const selfMatches = selfMatchesSearch && selfMatchesType;
+  const selfMatchesAssignee = assigneeFilter === null || node.assignee?.id === assigneeFilter;
+  const selfMatches = selfMatchesSearch && selfMatchesType && selfMatchesAssignee;
 
   if (selfMatches || filteredChildren.length > 0) {
-    return { ...node, childNodes: filteredChildren.length > 0 ? filteredChildren : (selfMatches ? node.childNodes : []) };
+    return {
+      ...node,
+      childNodes: filteredChildren.length > 0 ? filteredChildren : selfMatches ? node.childNodes : [],
+    };
   }
 
   return null;
@@ -75,7 +80,7 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
           padding: '7px 16px 7px 0',
           paddingLeft: `${16 + indent}px`,
           borderRadius: '4px',
-          cursor: hasChildren ? 'pointer' : 'default',
+          cursor: node.url ? 'pointer' : 'default',
           transition: 'background 100ms ease',
         }}
         onMouseEnter={(e) => {
@@ -84,10 +89,20 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
         onMouseLeave={(e) => {
           (e.currentTarget as HTMLDivElement).style.background = 'transparent';
         }}
-        onClick={() => hasChildren && onToggle(node.id)}
+        onClick={() => node.url && window.open(node.url, '_blank', 'noopener,noreferrer')}
       >
         {/* Expand/collapse chevron */}
-        <div style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+        <div
+          style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center' }}
+          onClick={
+            hasChildren
+              ? (e) => {
+                  e.stopPropagation();
+                  onToggle(node.id);
+                }
+              : undefined
+          }
+        >
           {hasChildren ? (
             isCollapsed ? (
               <ChevronRight size={13} style={{ color: '#555' }} />
@@ -114,7 +129,7 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
         <span
           style={{
             fontSize: '13px',
-            color: '#ccc',
+            color: node.state.color,
             flex: 1,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -124,6 +139,21 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
         >
           {node.title}
         </span>
+
+        {/* Assignee */}
+        {node.assignee && (
+          <span
+            style={{
+              fontSize: '11px',
+              color: '#555',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+              marginLeft: '8px',
+            }}
+          >
+            {node.assignee.name}
+          </span>
+        )}
 
         {/* Status badge */}
         <div
@@ -144,13 +174,7 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
               flexShrink: 0,
             }}
           />
-          <span
-            style={{
-              fontSize: '11px',
-              color: '#666',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <span style={{ fontSize: '11px', color: '#666', whiteSpace: 'nowrap' }}>
             {node.state.name}
           </span>
         </div>
@@ -177,13 +201,12 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
 export default function RequirementsList({ data, loading, initialTypeFilter }: RequirementsListProps) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<LinearState['type'] | null>(initialTypeFilter ?? null);
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
-  const [collapsedIssues, setCollapsedIssues] = useState<Set<string>>(() => {
-    // Start with all depth-1+ nodes collapsed (just root nodes expanded)
-    return new Set<string>();
-  });
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(
+    () => new Set(data.projects.map((p) => p.id)),
+  );
+  const [collapsedIssues, setCollapsedIssues] = useState<Set<string>>(new Set());
 
-  // Collect all unique state types across all issues
   const allStateTypes = useMemo(() => {
     const types = new Map<LinearState['type'], { color: string; name: string }>();
     for (const project of data.projects) {
@@ -199,17 +222,28 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
     }));
   }, [data]);
 
+  const allAssignees = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    for (const project of data.projects) {
+      for (const issue of project.allIssues) {
+        if (issue.assignee && !map.has(issue.assignee.id)) {
+          map.set(issue.assignee.id, { id: issue.assignee.id, name: issue.assignee.name });
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [data]);
+
   const filteredProjects = useMemo(() => {
     return data.projects
       .map((project) => {
         const filteredRoots = project.rootIssues
-          .map((node) => filterNode(node, search, typeFilter))
+          .map((node) => filterNode(node, search, typeFilter, assigneeFilter))
           .filter((n): n is IssueNode => n !== null);
-
         return { ...project, rootIssues: filteredRoots };
       })
       .filter((p) => p.rootIssues.length > 0);
-  }, [data, search, typeFilter]);
+  }, [data, search, typeFilter, assigneeFilter]);
 
   const toggleProject = (id: string) => {
     setCollapsedProjects((prev) => {
@@ -309,6 +343,32 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
           )}
         </div>
 
+        {/* Assignee filter */}
+        {allAssignees.length > 0 && (
+          <select
+            value={assigneeFilter ?? ''}
+            onChange={(e) => setAssigneeFilter(e.target.value || null)}
+            style={{
+              background: '#2a2a2a',
+              border: `1px solid ${assigneeFilter ? '#4f8ef7' : '#3a3a3a'}`,
+              borderRadius: '6px',
+              padding: '6px 10px',
+              fontSize: '12px',
+              color: assigneeFilter ? '#e5e5e5' : '#666',
+              outline: 'none',
+              cursor: 'pointer',
+              transition: 'border-color 150ms ease',
+            }}
+          >
+            <option value="">All assignees</option>
+            {allAssignees.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        )}
+
         {/* Status filter chips */}
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: '12px', color: '#555' }}>Filter:</span>
@@ -345,9 +405,13 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
               </button>
             );
           })}
-          {(typeFilter || search) && (
+          {(typeFilter || search || assigneeFilter) && (
             <button
-              onClick={() => { setTypeFilter(null); setSearch(''); }}
+              onClick={() => {
+                setTypeFilter(null);
+                setSearch('');
+                setAssigneeFilter(null);
+              }}
               style={{
                 padding: '4px 10px',
                 borderRadius: '20px',
