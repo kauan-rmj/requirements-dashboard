@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronRight, ChevronDown, Search, X } from 'lucide-react';
 import type { DashboardData, IssueNode, LinearState } from '@/lib/types';
 
@@ -12,41 +12,183 @@ interface RequirementsListProps {
 
 type CollapsedSet = Set<string>;
 
-const STATE_TYPE_LABELS: Record<LinearState['type'], string> = {
-  triage: 'Triage',
-  backlog: 'Backlog',
-  unstarted: 'Unstarted',
-  started: 'Started',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+const TYPE_ORDER: Record<string, number> = {
+  triage: 0,
+  backlog: 1,
+  unstarted: 2,
+  started: 3,
+  completed: 4,
+  cancelled: 5,
 };
 
-const STATE_TYPE_ORDER: LinearState['type'][] = [
-  'triage',
-  'backlog',
-  'unstarted',
-  'started',
-  'completed',
-  'cancelled',
-];
+// ---------- MultiSelect ----------
+
+interface MultiSelectOption {
+  value: string;
+  label: string;
+  color?: string;
+}
+
+interface MultiSelectProps {
+  placeholder: string;
+  options: MultiSelectOption[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}
+
+function MultiSelect({ placeholder, options, selected, onChange }: MultiSelectProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const toggle = (value: string) => {
+    const next = new Set(selected);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    onChange(next);
+  };
+
+  const buttonLabel =
+    selected.size === 0
+      ? placeholder
+      : selected.size === 1
+        ? (options.find((o) => selected.has(o.value))?.label ?? placeholder)
+        : `${selected.size} selected`;
+
+  const isActive = selected.size > 0;
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: '#2a2a2a',
+          border: `1px solid ${isActive ? '#4f8ef7' : '#3a3a3a'}`,
+          borderRadius: '6px',
+          padding: '6px 10px',
+          fontSize: '12px',
+          color: isActive ? '#e5e5e5' : '#666',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          whiteSpace: 'nowrap',
+          transition: 'border-color 150ms ease',
+        }}
+      >
+        {buttonLabel}
+        <ChevronDown size={11} style={{ color: '#555', flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            background: '#1f1f1f',
+            border: '1px solid #3a3a3a',
+            borderRadius: '6px',
+            zIndex: 100,
+            minWidth: '190px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+            overflow: 'hidden',
+          }}
+        >
+          {options.map((opt) => {
+            const checked = selected.has(opt.value);
+            return (
+              <div
+                key={opt.value}
+                onClick={() => toggle(opt.value)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  background: checked ? '#252525' : 'transparent',
+                  transition: 'background 80ms ease',
+                }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLDivElement).style.background = '#2a2a2a')
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLDivElement).style.background = checked ? '#252525' : 'transparent')
+                }
+              >
+                {/* Checkbox */}
+                <div
+                  style={{
+                    width: '13px',
+                    height: '13px',
+                    borderRadius: '3px',
+                    border: `1px solid ${checked ? '#4f8ef7' : '#444'}`,
+                    background: checked ? '#4f8ef7' : 'transparent',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {checked && (
+                    <span style={{ fontSize: '9px', color: '#fff', lineHeight: 1 }}>✓</span>
+                  )}
+                </div>
+
+                {/* Color dot (for status) */}
+                {opt.color && (
+                  <div
+                    style={{
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      background: opt.color,
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+
+                <span style={{ fontSize: '12px', color: '#ccc' }}>{opt.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Filter ----------
 
 function filterNode(
   node: IssueNode,
   query: string,
-  typeFilter: LinearState['type'] | null,
-  assigneeFilter: string | null,
+  statusFilter: Set<string>,
+  assigneeFilter: Set<string>,
 ): IssueNode | null {
   const filteredChildren = node.childNodes
-    .map((child) => filterNode(child, query, typeFilter, assigneeFilter))
+    .map((child) => filterNode(child, query, statusFilter, assigneeFilter))
     .filter((c): c is IssueNode => c !== null);
 
   const selfMatchesSearch =
     query === '' ||
     node.identifier.toLowerCase().includes(query.toLowerCase()) ||
     node.title.toLowerCase().includes(query.toLowerCase());
-  const selfMatchesType = typeFilter === null || node.state.type === typeFilter;
-  const selfMatchesAssignee = assigneeFilter === null || node.assignee?.id === assigneeFilter;
-  const selfMatches = selfMatchesSearch && selfMatchesType && selfMatchesAssignee;
+  const selfMatchesStatus = statusFilter.size === 0 || statusFilter.has(node.state.id);
+  const selfMatchesAssignee =
+    assigneeFilter.size === 0 || (node.assignee != null && assigneeFilter.has(node.assignee.id));
+  const selfMatches = selfMatchesSearch && selfMatchesStatus && selfMatchesAssignee;
 
   if (selfMatches || filteredChildren.length > 0) {
     return {
@@ -57,6 +199,8 @@ function filterNode(
 
   return null;
 }
+
+// ---------- IssueRow ----------
 
 interface IssueRowProps {
   node: IssueNode;
@@ -83,12 +227,8 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
           cursor: node.url ? 'pointer' : 'default',
           transition: 'background 100ms ease',
         }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLDivElement).style.background = '#232323';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.background = 'transparent';
-        }}
+        onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = '#232323')}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
         onClick={() => node.url && window.open(node.url, '_blank', 'noopener,noreferrer')}
       >
         {/* Expand/collapse chevron */}
@@ -103,27 +243,13 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
               : undefined
           }
         >
-          {hasChildren ? (
-            isCollapsed ? (
+          {hasChildren &&
+            (isCollapsed ? (
               <ChevronRight size={13} style={{ color: '#555' }} />
             ) : (
               <ChevronDown size={13} style={{ color: '#555' }} />
-            )
-          ) : null}
+            ))}
         </div>
-
-        {/* Identifier */}
-        <span
-          style={{
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            fontSize: '11px',
-            color: '#555',
-            flexShrink: 0,
-            minWidth: '68px',
-          }}
-        >
-          {node.identifier}
-        </span>
 
         {/* Title */}
         <span
@@ -154,30 +280,6 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
             {node.assignee.name}
           </span>
         )}
-
-        {/* Status badge */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            flexShrink: 0,
-            marginLeft: '8px',
-          }}
-        >
-          <div
-            style={{
-              width: '7px',
-              height: '7px',
-              borderRadius: '50%',
-              background: node.state.color,
-              flexShrink: 0,
-            }}
-          />
-          <span style={{ fontSize: '11px', color: '#666', whiteSpace: 'nowrap' }}>
-            {node.state.name}
-          </span>
-        </div>
       </div>
 
       {/* Children */}
@@ -198,28 +300,30 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
   );
 }
 
+// ---------- Main component ----------
+
 export default function RequirementsList({ data, loading, initialTypeFilter }: RequirementsListProps) {
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<LinearState['type'] | null>(initialTypeFilter ?? null);
-  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(
-    () => new Set(data.projects.map((p) => p.id)),
-  );
-  const [collapsedIssues, setCollapsedIssues] = useState<Set<string>>(new Set());
 
-  const allStateTypes = useMemo(() => {
-    const types = new Map<LinearState['type'], { color: string; name: string }>();
+  // Collect unique statuses sorted by type order then name
+  const allStatuses = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string; type: string }>();
     for (const project of data.projects) {
       for (const issue of project.allIssues) {
-        if (!types.has(issue.state.type)) {
-          types.set(issue.state.type, { color: issue.state.color, name: issue.state.name });
+        if (!map.has(issue.state.id)) {
+          map.set(issue.state.id, {
+            id: issue.state.id,
+            name: issue.state.name,
+            color: issue.state.color,
+            type: issue.state.type,
+          });
         }
       }
     }
-    return STATE_TYPE_ORDER.filter((t) => types.has(t)).map((t) => ({
-      type: t,
-      ...types.get(t)!,
-    }));
+    return Array.from(map.values()).sort((a, b) => {
+      const tDiff = (TYPE_ORDER[a.type] ?? 99) - (TYPE_ORDER[b.type] ?? 99);
+      return tDiff !== 0 ? tDiff : a.name.localeCompare(b.name);
+    });
   }, [data]);
 
   const allAssignees = useMemo(() => {
@@ -234,16 +338,35 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
+  // Pre-select status IDs matching the initial type filter (from URL ?type=...)
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(() => {
+    if (!initialTypeFilter) return new Set();
+    const ids = new Set<string>();
+    for (const project of data.projects) {
+      for (const issue of project.allIssues) {
+        if (issue.state.type === initialTypeFilter) ids.add(issue.state.id);
+      }
+    }
+    return ids;
+  });
+
+  const [assigneeFilter, setAssigneeFilter] = useState<Set<string>>(new Set());
+
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(
+    () => new Set(data.projects.map((p) => p.id)),
+  );
+  const [collapsedIssues, setCollapsedIssues] = useState<Set<string>>(new Set());
+
   const filteredProjects = useMemo(() => {
     return data.projects
       .map((project) => {
         const filteredRoots = project.rootIssues
-          .map((node) => filterNode(node, search, typeFilter, assigneeFilter))
+          .map((node) => filterNode(node, search, statusFilter, assigneeFilter))
           .filter((n): n is IssueNode => n !== null);
         return { ...project, rootIssues: filteredRoots };
       })
       .filter((p) => p.rootIssues.length > 0);
-  }, [data, search, typeFilter, assigneeFilter]);
+  }, [data, search, statusFilter, assigneeFilter]);
 
   const toggleProject = (id: string) => {
     setCollapsedProjects((prev) => {
@@ -263,7 +386,19 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
     });
   };
 
+  const hasActiveFilters = search !== '' || statusFilter.size > 0 || assigneeFilter.size > 0;
   const hasResults = filteredProjects.length > 0;
+
+  const statusOptions: MultiSelectOption[] = allStatuses.map((s) => ({
+    value: s.id,
+    label: s.name,
+    color: s.color,
+  }));
+
+  const assigneeOptions: MultiSelectOption[] = allAssignees.map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
 
   return (
     <div
@@ -281,7 +416,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
           borderBottom: '1px solid #2a2a2a',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
+          gap: '10px',
           flexWrap: 'wrap',
         }}
       >
@@ -314,12 +449,8 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
               width: '220px',
               transition: 'border-color 150ms ease',
             }}
-            onFocus={(e) => {
-              (e.target as HTMLInputElement).style.borderColor = '#4f8ef7';
-            }}
-            onBlur={(e) => {
-              (e.target as HTMLInputElement).style.borderColor = '#3a3a3a';
-            }}
+            onFocus={(e) => ((e.target as HTMLInputElement).style.borderColor = '#4f8ef7')}
+            onBlur={(e) => ((e.target as HTMLInputElement).style.borderColor = '#3a3a3a')}
           />
           {search && (
             <button
@@ -343,89 +474,51 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
           )}
         </div>
 
-        {/* Assignee filter */}
-        {allAssignees.length > 0 && (
-          <select
-            value={assigneeFilter ?? ''}
-            onChange={(e) => setAssigneeFilter(e.target.value || null)}
-            style={{
-              background: '#2a2a2a',
-              border: `1px solid ${assigneeFilter ? '#4f8ef7' : '#3a3a3a'}`,
-              borderRadius: '6px',
-              padding: '6px 10px',
-              fontSize: '12px',
-              color: assigneeFilter ? '#e5e5e5' : '#666',
-              outline: 'none',
-              cursor: 'pointer',
-              transition: 'border-color 150ms ease',
-            }}
-          >
-            <option value="">All assignees</option>
-            {allAssignees.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+        {/* Status multi-select */}
+        {statusOptions.length > 0 && (
+          <MultiSelect
+            placeholder="All statuses"
+            options={statusOptions}
+            selected={statusFilter}
+            onChange={setStatusFilter}
+          />
         )}
 
-        {/* Status filter chips */}
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#555' }}>Filter:</span>
-          {allStateTypes.map((st) => {
-            const isActive = typeFilter === st.type;
-            return (
-              <button
-                key={st.type}
-                onClick={() => setTypeFilter(isActive ? null : st.type)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  border: `1px solid ${isActive ? st.color : '#3a3a3a'}`,
-                  background: isActive ? `${st.color}22` : 'transparent',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  color: isActive ? st.color : '#888',
-                  transition: 'all 150ms ease',
-                  fontWeight: isActive ? 500 : 400,
-                }}
-              >
-                <div
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: st.color,
-                  }}
-                />
-                {STATE_TYPE_LABELS[st.type]}
-              </button>
-            );
-          })}
-          {(typeFilter || search || assigneeFilter) && (
-            <button
-              onClick={() => {
-                setTypeFilter(null);
-                setSearch('');
-                setAssigneeFilter(null);
-              }}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '20px',
-                border: '1px solid #3a3a3a',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontSize: '11px',
-                color: '#666',
-              }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
+        {/* Assignee multi-select */}
+        {assigneeOptions.length > 0 && (
+          <MultiSelect
+            placeholder="All assignees"
+            options={assigneeOptions}
+            selected={assigneeFilter}
+            onChange={setAssigneeFilter}
+          />
+        )}
+
+        {/* Clear */}
+        {hasActiveFilters && (
+          <button
+            onClick={() => {
+              setSearch('');
+              setStatusFilter(new Set());
+              setAssigneeFilter(new Set());
+            }}
+            style={{
+              padding: '6px 10px',
+              borderRadius: '6px',
+              border: '1px solid #3a3a3a',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: '12px',
+              color: '#666',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <X size={11} />
+            Clear
+          </button>
+        )}
 
         {loading && (
           <span style={{ fontSize: '12px', color: '#555', marginLeft: 'auto' }}>
@@ -468,12 +561,12 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
                   cursor: 'pointer',
                   transition: 'background 100ms ease',
                 }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.background = '#252525';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.background = '#1f1f1f';
-                }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLDivElement).style.background = '#252525')
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLDivElement).style.background = '#1f1f1f')
+                }
                 onClick={() => toggleProject(project.id)}
               >
                 {isProjectCollapsed ? (
@@ -509,13 +602,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
               {!isProjectCollapsed && (
                 <div style={{ padding: '4px 8px 8px' }}>
                   {project.rootIssues.length === 0 && (
-                    <div
-                      style={{
-                        padding: '12px 16px',
-                        fontSize: '13px',
-                        color: '#555',
-                      }}
-                    >
+                    <div style={{ padding: '12px 16px', fontSize: '13px', color: '#555' }}>
                       No issues in this project.
                     </div>
                   )}
