@@ -37,6 +37,7 @@ interface AssigneeData {
   current: IssueWithProject[];
   recent: IssueWithProject[];
   totalIssues: number;
+  completedIssues: number;
 }
 
 function buildAssigneeData(data: DashboardData): AssigneeData[] {
@@ -62,7 +63,8 @@ function buildAssigneeData(data: DashboardData): AssigneeData[] {
           return tb - ta;
         })
         .slice(0, 3);
-      return { id, name, avatarUrl, current, recent, totalIssues: issues.length };
+      const completedIssues = issues.filter((i) => i.state.type === 'completed').length;
+      return { id, name, avatarUrl, current, recent, totalIssues: issues.length, completedIssues };
     })
     .sort((a, b) => b.totalIssues - a.totalIssues);
 }
@@ -167,6 +169,9 @@ function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
         )}
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#e5e5e5', letterSpacing: '-0.01em' }}>
           {assignee.name}
+        </span>
+        <span style={{ fontSize: '11px', color: '#555' }}>
+          {assignee.completedIssues}/{assignee.totalIssues}
         </span>
         {hasActive && (
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}>
