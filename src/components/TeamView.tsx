@@ -36,6 +36,7 @@ interface AssigneeData {
   avatarUrl?: string | null;
   current: IssueWithProject[];
   recent: IssueWithProject[];
+  totalIssues: number;
 }
 
 function buildAssigneeData(data: DashboardData): AssigneeData[] {
@@ -52,19 +53,18 @@ function buildAssigneeData(data: DashboardData): AssigneeData[] {
 
   return Array.from(map.values())
     .map(({ id, name, avatarUrl, issues }) => {
-      const current = issues.filter((i) => i.state.type === 'started');
+      const current = issues.filter((i) => i.state.name === 'Doing');
       const recent = issues
-        .filter((i) => i.state.type === 'completed' && i.completedAt)
-        .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
+        .filter((i) => i.state.name === 'Done' || i.state.name === 'Ready')
+        .sort((a, b) => {
+          const ta = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+          const tb = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+          return tb - ta;
+        })
         .slice(0, 3);
-      return { id, name, avatarUrl, current, recent };
+      return { id, name, avatarUrl, current, recent, totalIssues: issues.length };
     })
-    .filter((a) => a.current.length > 0 || a.recent.length > 0)
-    .sort((a, b) => {
-      if (a.current.length > 0 && b.current.length === 0) return -1;
-      if (b.current.length > 0 && a.current.length === 0) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    .sort((a, b) => b.totalIssues - a.totalIssues);
 }
 
 function IssueItem({ issue, dim }: { issue: IssueWithProject; dim?: boolean }) {
@@ -231,7 +231,9 @@ function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
         )}
 
         {!hasActive && assignee.recent.length === 0 && (
-          <div style={{ padding: '8px 6px', fontSize: '12px', color: '#444' }}>No activity</div>
+          <div style={{ padding: '8px 6px', fontSize: '12px', color: '#3a3a3a' }}>
+            No active or recently completed tasks
+          </div>
         )}
       </div>
     </div>
@@ -250,15 +252,13 @@ export default function TeamView({ data, loading }: TeamViewProps) {
   const filtered = useMemo(() => {
     if (!search) return assignees;
     const q = search.toLowerCase();
-    return assignees
-      .map((a) => {
-        if (a.name.toLowerCase().includes(q)) return a;
-        const current = a.current.filter((i) => i.title.toLowerCase().includes(q));
-        const recent = a.recent.filter((i) => i.title.toLowerCase().includes(q));
-        if (current.length > 0 || recent.length > 0) return { ...a, current, recent };
-        return null;
-      })
-      .filter((a): a is AssigneeData => a !== null);
+    return assignees.filter((a) => {
+      if (a.name.toLowerCase().includes(q)) return true;
+      return (
+        a.current.some((i) => i.title.toLowerCase().includes(q)) ||
+        a.recent.some((i) => i.title.toLowerCase().includes(q))
+      );
+    });
   }, [assignees, search]);
 
   return (
