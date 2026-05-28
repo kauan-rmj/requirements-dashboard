@@ -45,7 +45,10 @@ export default function TimelinePage() {
       const json = (await res.json()) as DashboardData;
       setData(json);
       if (json.projects.length > 0 && selectedProjectId === null) {
-        setSelectedProjectId(json.projects[0].id);
+        const active = (p: ProjectData) =>
+          p.allIssues.filter((i) => i.state.type === 'started' || i.state.type === 'completed').length;
+        const best = json.projects.reduce((a, b) => (active(a) >= active(b) ? a : b));
+        setSelectedProjectId(best.id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
