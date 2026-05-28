@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronRight, ChevronDown, Search, X } from 'lucide-react';
 import type { DashboardData, IssueNode, LinearState } from '@/lib/types';
 
@@ -38,18 +39,31 @@ interface MultiSelectProps {
 
 function MultiSelect({ placeholder, options, selected, onChange }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (
+        !buttonRef.current?.contains(e.target as Node) &&
+        !dropdownRef.current?.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  const handleOpen = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    }
+    setOpen((o) => !o);
+  };
 
   const toggle = (value: string) => {
     const next = new Set(selected);
@@ -67,10 +81,84 @@ function MultiSelect({ placeholder, options, selected, onChange }: MultiSelectPr
 
   const isActive = selected.size > 0;
 
+  const dropdown = open ? (
+    <div
+      ref={dropdownRef}
+      style={{
+        position: 'absolute',
+        top: `${pos.top}px`,
+        left: `${pos.left}px`,
+        background: '#1f1f1f',
+        border: '1px solid #3a3a3a',
+        borderRadius: '6px',
+        zIndex: 9999,
+        minWidth: '190px',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+        overflow: 'hidden',
+      }}
+    >
+      {options.map((opt) => {
+        const checked = selected.has(opt.value);
+        return (
+          <div
+            key={opt.value}
+            onClick={() => toggle(opt.value)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              cursor: 'pointer',
+              background: checked ? '#252525' : 'transparent',
+              transition: 'background 80ms ease',
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLDivElement).style.background = '#2a2a2a')
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLDivElement).style.background = checked ? '#252525' : 'transparent')
+            }
+          >
+            <div
+              style={{
+                width: '13px',
+                height: '13px',
+                borderRadius: '3px',
+                border: `1px solid ${checked ? '#4f8ef7' : '#444'}`,
+                background: checked ? '#4f8ef7' : 'transparent',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {checked && (
+                <span style={{ fontSize: '9px', color: '#fff', lineHeight: 1 }}>✓</span>
+              )}
+            </div>
+            {opt.color && (
+              <div
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: opt.color,
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            <span style={{ fontSize: '12px', color: '#ccc' }}>{opt.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
   return (
-    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+    <div style={{ position: 'relative', flexShrink: 0 }}>
       <button
-        onClick={() => setOpen((o) => !o)}
+        ref={buttonRef}
+        onClick={handleOpen}
         style={{
           background: '#2a2a2a',
           border: `1px solid ${isActive ? '#4f8ef7' : '#3a3a3a'}`,
@@ -89,82 +177,7 @@ function MultiSelect({ placeholder, options, selected, onChange }: MultiSelectPr
         {buttonLabel}
         <ChevronDown size={11} style={{ color: '#555', flexShrink: 0 }} />
       </button>
-
-      {open && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            background: '#1f1f1f',
-            border: '1px solid #3a3a3a',
-            borderRadius: '6px',
-            zIndex: 100,
-            minWidth: '190px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
-            overflow: 'hidden',
-          }}
-        >
-          {options.map((opt) => {
-            const checked = selected.has(opt.value);
-            return (
-              <div
-                key={opt.value}
-                onClick={() => toggle(opt.value)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  background: checked ? '#252525' : 'transparent',
-                  transition: 'background 80ms ease',
-                }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLDivElement).style.background = '#2a2a2a')
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLDivElement).style.background = checked ? '#252525' : 'transparent')
-                }
-              >
-                {/* Checkbox */}
-                <div
-                  style={{
-                    width: '13px',
-                    height: '13px',
-                    borderRadius: '3px',
-                    border: `1px solid ${checked ? '#4f8ef7' : '#444'}`,
-                    background: checked ? '#4f8ef7' : 'transparent',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {checked && (
-                    <span style={{ fontSize: '9px', color: '#fff', lineHeight: 1 }}>✓</span>
-                  )}
-                </div>
-
-                {/* Color dot (for status) */}
-                {opt.color && (
-                  <div
-                    style={{
-                      width: '7px',
-                      height: '7px',
-                      borderRadius: '50%',
-                      background: opt.color,
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-
-                <span style={{ fontSize: '12px', color: '#ccc' }}>{opt.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {typeof document !== 'undefined' && dropdown && createPortal(dropdown, document.body)}
     </div>
   );
 }
