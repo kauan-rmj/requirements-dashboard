@@ -74,7 +74,52 @@ function buildAssigneeData(data: DashboardData): AssigneeData[] {
     });
 }
 
-function IssueItem({ issue, dim }: { issue: IssueWithProject; dim?: boolean }) {
+interface GroupedIssue {
+  issue: IssueWithProject;
+  children: IssueWithProject[];
+  isOrphanSub: boolean;
+}
+
+function groupIssues(issues: IssueWithProject[]): GroupedIssue[] {
+  const ids = new Set(issues.map((i) => i.id));
+  const childToParent = new Map<string, string>();
+
+  for (const issue of issues) {
+    if (issue.parent?.id && ids.has(issue.parent.id)) {
+      childToParent.set(issue.id, issue.parent.id);
+    }
+  }
+
+  const childrenByParent = new Map<string, IssueWithProject[]>();
+  for (const issue of issues) {
+    const parentId = childToParent.get(issue.id);
+    if (parentId) {
+      if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
+      childrenByParent.get(parentId)!.push(issue);
+    }
+  }
+
+  const result: GroupedIssue[] = [];
+  for (const issue of issues) {
+    if (childToParent.has(issue.id)) continue;
+    result.push({
+      issue,
+      children: childrenByParent.get(issue.id) ?? [],
+      isOrphanSub: !!(issue.parent?.id && !ids.has(issue.parent.id)),
+    });
+  }
+  return result;
+}
+
+function IssueItem({
+  issue,
+  dim,
+  indent,
+}: {
+  issue: IssueWithProject;
+  dim?: boolean;
+  indent?: boolean;
+}) {
   return (
     <div
       style={{
@@ -82,15 +127,29 @@ function IssueItem({ issue, dim }: { issue: IssueWithProject; dim?: boolean }) {
         alignItems: 'flex-start',
         gap: '8px',
         padding: '5px 6px',
+        paddingLeft: indent ? '18px' : '6px',
         borderRadius: '4px',
         cursor: issue.url ? 'pointer' : 'default',
         opacity: dim ? 0.55 : 1,
         transition: 'background 100ms ease',
+        position: 'relative',
       }}
       onMouseEnter={(e) => issue.url && ((e.currentTarget as HTMLDivElement).style.background = '#252525')}
       onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
       onClick={() => issue.url && window.open(issue.url, '_blank', 'noopener,noreferrer')}
     >
+      {indent && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '10px',
+            top: 0,
+            bottom: 0,
+            width: '1px',
+            background: '#333',
+          }}
+        />
+      )}
       <div style={{ marginTop: '4px', flexShrink: 0 }}>
         <div
           style={{
@@ -118,6 +177,21 @@ function IssueItem({ issue, dim }: { issue: IssueWithProject; dim?: boolean }) {
           {issue.projectName}
         </div>
       </div>
+    </div>
+  );
+}
+
+function IssueGroup({ group, dim }: { group: GroupedIssue; dim?: boolean }) {
+  return (
+    <div>
+      <IssueItem
+        issue={group.issue}
+        dim={dim}
+        indent={group.isOrphanSub}
+      />
+      {group.children.map((child) => (
+        <IssueItem key={child.id} issue={child} dim={dim} indent />
+      ))}
     </div>
   );
 }
@@ -215,8 +289,8 @@ function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
             >
               Doing
             </div>
-            {assignee.current.map((issue) => (
-              <IssueItem key={issue.id} issue={issue} />
+            {groupIssues(assignee.current).map((g) => (
+              <IssueGroup key={g.issue.id} group={g} />
             ))}
           </div>
         )}
@@ -237,8 +311,8 @@ function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
             >
               Recently completed
             </div>
-            {assignee.recent.map((issue) => (
-              <IssueItem key={issue.id} issue={issue} dim />
+            {groupIssues(assignee.recent).map((g) => (
+              <IssueGroup key={g.issue.id} group={g} dim />
             ))}
           </div>
         )}
