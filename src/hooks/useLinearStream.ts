@@ -61,7 +61,9 @@ export function useLinearStream(): StreamState & { refresh: () => void } {
           } else if (chunk.type === 'project') {
             setState((s) => ({
               ...s,
-              projects: [...s.projects, chunk.data].sort((a, b) => a.total - b.total),
+              projects: [...s.projects, chunk.data].sort(
+                (a, b) => a.total - b.total || a.name.localeCompare(b.name),
+              ),
             }));
           } else if (chunk.type === 'error') {
             throw new Error(chunk.message);
