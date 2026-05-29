@@ -172,7 +172,10 @@ const ENV_LABELS = new Set(['hml', 'std']);
 
 function isEffectivelyCompleted(issue: LinearIssue): boolean {
   if (issue.state.type === 'completed') return true;
-  if (issue.state.name === 'Ready' && issue.labels.some((l) => ENV_LABELS.has(l.name))) return true;
+  if (
+    issue.state.name.toLowerCase() === 'ready' &&
+    issue.labels.some((l) => ENV_LABELS.has(l.name.toLowerCase()))
+  ) return true;
   return false;
 }
 
