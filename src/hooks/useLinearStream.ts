@@ -59,7 +59,10 @@ export function useLinearStream(): StreamState & { refresh: () => void } {
           if (chunk.type === 'meta') {
             setState((s) => ({ ...s, totalProjects: chunk.total, updatedAt: chunk.updatedAt }));
           } else if (chunk.type === 'project') {
-            setState((s) => ({ ...s, projects: [...s.projects, chunk.data] }));
+            setState((s) => ({
+              ...s,
+              projects: [...s.projects, chunk.data].sort((a, b) => a.total - b.total),
+            }));
           } else if (chunk.type === 'error') {
             throw new Error(chunk.message);
           }
