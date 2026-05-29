@@ -62,9 +62,16 @@ export interface StatusCount {
   position: number;
 }
 
+export interface ProjectLead {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+
 export interface ProjectData {
   id: string;
   name: string;
+  lead: ProjectLead | null;
   rootIssues: IssueNode[];
   allIssues: LinearIssue[];
   statusCounts: Record<string, StatusCount>;

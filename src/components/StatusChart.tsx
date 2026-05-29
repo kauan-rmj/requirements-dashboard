@@ -14,6 +14,53 @@ interface StatusChartProps {
 
 const AUTO_REFRESH_MS = 60_000;
 
+const AVATAR_COLORS = ['#4f8ef7', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#60a5fa', '#f472b6'];
+
+function avatarBg(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash * 31) + name.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+}
+
+function LeadAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
+  const [imgError, setImgError] = useState(false);
+  const bg = avatarBg(name);
+  return (
+    <div title={name} style={{ flexShrink: 0 }}>
+      {avatarUrl && !imgError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt={name}
+          onError={() => setImgError(true)}
+          style={{ width: '20px', height: '20px', borderRadius: '50%', display: 'block' }}
+        />
+      ) : (
+        <div
+          style={{
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            background: bg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '8px',
+            fontWeight: 700,
+            color: '#fff',
+          }}
+        >
+          {initials(name)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function pctColor(pct: number): string {
   if (pct >= 90) return '#4ade80'; // green
   if (pct >= 70) return '#fbbf24'; // amber
@@ -237,16 +284,21 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                   style={{
                     width: '200px',
                     flexShrink: 0,
-                    textAlign: 'right',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: '7px',
                   }}
                 >
+                  {project.lead && (
+                    <LeadAvatar name={project.lead.name} avatarUrl={project.lead.avatarUrl} />
+                  )}
                   <span
                     title={project.name}
                     style={{
                       fontSize: '13px',
                       fontWeight: 500,
                       color: '#ccc',
-                      display: 'block',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',

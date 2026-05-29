@@ -8,6 +8,11 @@ const PROJECTS_LIST_QUERY = `
       nodes {
         id
         name
+        lead {
+          id
+          name
+          avatarUrl
+        }
         labels {
           nodes {
             id
@@ -89,6 +94,7 @@ interface RawIssue {
 interface RawProjectSummary {
   id: string;
   name: string;
+  lead?: { id: string; name: string; avatarUrl?: string | null } | null;
   labels: {
     nodes: { id: string; name: string }[];
   };
@@ -408,12 +414,12 @@ export async function fetchTargetProjects(apiKey: string): Promise<{ id: string;
     ? trackingProjects.filter((p) => filterIds.includes(p.id))
     : trackingProjects;
 
-  return targets.map((p) => ({ id: p.id, name: p.name }));
+  return targets.map((p) => ({ id: p.id, name: p.name, lead: p.lead ?? null }));
 }
 
 export async function fetchSingleProjectData(
   apiKey: string,
-  p: { id: string; name: string },
+  p: { id: string; name: string; lead?: { id: string; name: string; avatarUrl?: string | null } | null },
 ): Promise<ProjectData> {
   const issuesRes = await gql<IssuesResponse>(apiKey, ISSUES_QUERY, { projectId: p.id });
   const rawIssues = issuesRes.data?.project?.issues.nodes ?? [];
@@ -423,7 +429,7 @@ export async function fetchSingleProjectData(
   const total = allIssues.length;
   const completed = allIssues.filter(isEffectivelyCompleted).length;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  return { id: p.id, name: p.name, rootIssues, allIssues, statusCounts, total, completed, pct };
+  return { id: p.id, name: p.name, lead: p.lead ?? null, rootIssues, allIssues, statusCounts, total, completed, pct };
 }
 
 export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
