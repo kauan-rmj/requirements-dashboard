@@ -338,7 +338,7 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                               });
                             }}
                             onMouseLeave={() => setHovered(null)}
-                            onClick={() => router.push(`/requirements?type=${sc.type}`)}
+                            onClick={() => router.push(`/requirements?stateId=${sc.id}&projectId=${project.id}`)}
                           />
                         );
                       })

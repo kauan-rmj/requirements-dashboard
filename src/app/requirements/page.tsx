@@ -114,6 +114,8 @@ function RequirementsPageInner() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type');
   const initialTypeFilter: LinearState['type'] | null = isValidStateType(typeParam) ? typeParam : null;
+  const initialStateId = searchParams.get('stateId');
+  const initialProjectId = searchParams.get('projectId');
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -207,7 +209,13 @@ function RequirementsPageInner() {
 
       {/* Requirements list */}
       {!initialLoad && data && (
-        <RequirementsList data={data} loading={loading} initialTypeFilter={initialTypeFilter} />
+        <RequirementsList
+          data={data}
+          loading={loading}
+          initialTypeFilter={initialTypeFilter}
+          initialStateId={initialStateId}
+          initialProjectId={initialProjectId}
+        />
       )}
 
       {/* Empty state */}

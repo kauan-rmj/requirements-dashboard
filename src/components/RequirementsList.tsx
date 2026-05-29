@@ -9,6 +9,8 @@ interface RequirementsListProps {
   data: DashboardData;
   loading: boolean;
   initialTypeFilter?: LinearState['type'] | null;
+  initialStateId?: string | null;
+  initialProjectId?: string | null;
 }
 
 type CollapsedSet = Set<string>;
@@ -363,7 +365,7 @@ function IssueRow({ node, depth, collapsed, onToggle }: IssueRowProps) {
 
 // ---------- Main component ----------
 
-export default function RequirementsList({ data, loading, initialTypeFilter }: RequirementsListProps) {
+export default function RequirementsList({ data, loading, initialTypeFilter, initialStateId, initialProjectId }: RequirementsListProps) {
   const [search, setSearch] = useState('');
 
   // Collect unique statuses sorted by type order then name
@@ -399,8 +401,9 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  // Pre-select status IDs matching the initial type filter (from URL ?type=...)
+  // Pre-select status filter: specific stateId takes priority over type-based filter
   const [statusFilter, setStatusFilter] = useState<Set<string>>(() => {
+    if (initialStateId) return new Set([initialStateId]);
     if (!initialTypeFilter) return new Set();
     const ids = new Set<string>();
     for (const project of data.projects) {
@@ -414,9 +417,11 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
   const [assigneeFilter, setAssigneeFilter] = useState<Set<string>>(new Set());
   const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set());
 
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(
-    () => new Set(data.projects.map((p) => p.id)),
-  );
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => {
+    const all = new Set(data.projects.map((p) => p.id));
+    if (initialProjectId) all.delete(initialProjectId);
+    return all;
+  });
   const [collapsedIssues, setCollapsedIssues] = useState<Set<string>>(new Set());
 
   const filteredProjects = useMemo(() => {
