@@ -49,6 +49,12 @@ const ISSUES_QUERY = `
             type
             position
           }
+          labels {
+            nodes {
+              id
+              name
+            }
+          }
         }
       }
     }
@@ -77,6 +83,7 @@ interface RawIssue {
   parent?: { id: string } | null;
   assignee?: { id: string; name: string; avatarUrl?: string | null } | null;
   state: RawState;
+  labels: { nodes: { id: string; name: string }[] };
 }
 
 interface RawProjectSummary {
@@ -157,7 +164,16 @@ function parseIssue(raw: RawIssue): LinearIssue {
     completedAt: raw.completedAt ?? null,
     canceledAt: raw.canceledAt ?? null,
     startedAt: raw.startedAt ?? null,
+    labels: raw.labels.nodes,
   };
+}
+
+const ENV_LABELS = new Set(['hml', 'std']);
+
+function isEffectivelyCompleted(issue: LinearIssue): boolean {
+  if (issue.state.type === 'completed') return true;
+  if (issue.state.name === 'Ready' && issue.labels.some((l) => ENV_LABELS.has(l.name))) return true;
+  return false;
 }
 
 function buildTree(issues: LinearIssue[]): IssueNode[] {
@@ -387,7 +403,7 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
       const rootIssues = buildTree(allIssues);
       const statusCounts = computeStatusCounts(allIssues);
       const total = allIssues.length;
-      const completed = allIssues.filter((i) => i.state.type === 'completed').length;
+      const completed = allIssues.filter(isEffectivelyCompleted).length;
       const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
       return { id: p.id, name: p.name, rootIssues, allIssues, statusCounts, total, completed, pct };

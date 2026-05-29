@@ -26,6 +26,7 @@ export interface LinearIssue {
   completedAt?: string | null;
   canceledAt?: string | null;
   startedAt?: string | null;
+  labels: { id: string; name: string }[];
 }
 
 export interface DayPoint {
