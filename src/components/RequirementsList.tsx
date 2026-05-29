@@ -198,6 +198,12 @@ function MultiSelect({ placeholder, options, selected, onChange }: MultiSelectPr
   );
 }
 
+// ---------- Helpers ----------
+
+function countNodes(nodes: IssueNode[]): number {
+  return nodes.reduce((sum, n) => sum + 1 + countNodes(n.childNodes), 0);
+}
+
 // ---------- Filter ----------
 
 function filterNode(
@@ -666,7 +672,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter }: R
                     marginLeft: '4px',
                   }}
                 >
-                  {project.rootIssues.length}
+                  {countNodes(project.rootIssues)}
                 </span>
               </div>
 
