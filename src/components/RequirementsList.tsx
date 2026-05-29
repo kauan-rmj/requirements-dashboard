@@ -417,11 +417,11 @@ export default function RequirementsList({ data, loading, initialTypeFilter, ini
   const [assigneeFilter, setAssigneeFilter] = useState<Set<string>>(new Set());
   const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set());
 
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => {
-    const all = new Set(data.projects.map((p) => p.id));
-    if (initialProjectId) all.delete(initialProjectId);
-    return all;
-  });
+  // Track explicitly expanded projects; default (not in set) = collapsed.
+  // This handles streaming: new projects arrive already collapsed without needing effects.
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+    () => initialProjectId ? new Set([initialProjectId]) : new Set(),
+  );
   const [collapsedIssues, setCollapsedIssues] = useState<Set<string>>(new Set());
 
   const filteredProjects = useMemo(() => {
@@ -436,7 +436,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter, ini
   }, [data, search, statusFilter, assigneeFilter, priorityFilter]);
 
   const toggleProject = (id: string) => {
-    setCollapsedProjects((prev) => {
+    setExpandedProjects((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -628,7 +628,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter, ini
         )}
 
         {filteredProjects.map((project, pidx) => {
-          const isProjectCollapsed = collapsedProjects.has(project.id);
+          const isProjectCollapsed = !expandedProjects.has(project.id);
 
           return (
             <div key={project.id}>

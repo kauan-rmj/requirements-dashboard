@@ -380,8 +380,19 @@ export function computeTimeline(projects: ProjectData[], weeks: number): Timelin
   return points;
 }
 
-export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
-  // Query 1: fetch all projects with labels only (low complexity)
+export function formatUpdatedAt(): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date());
+}
+
+export async function fetchTargetProjects(apiKey: string): Promise<{ id: string; name: string }[]> {
   const projectsRes = await gql<ProjectsListResponse>(apiKey, PROJECTS_LIST_QUERY);
   const allProjects = projectsRes.data?.projects?.nodes ?? [];
 
@@ -393,37 +404,32 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
     ? process.env.LINEAR_PROJECT_IDS.split(',').map((s) => s.trim()).filter(Boolean)
     : null;
 
-  const targetProjects = filterIds
+  const targets = filterIds
     ? trackingProjects.filter((p) => filterIds.includes(p.id))
     : trackingProjects;
 
-  // Query 2..N: fetch issues per project individually (each query stays within complexity limit)
-  const projects: ProjectData[] = await Promise.all(
-    targetProjects.map(async (p) => {
-      const issuesRes = await gql<IssuesResponse>(apiKey, ISSUES_QUERY, { projectId: p.id });
-      const rawIssues = issuesRes.data?.project?.issues.nodes ?? [];
-      const allIssues = rawIssues.map(parseIssue);
-      const rootIssues = buildTree(allIssues);
-      const statusCounts = computeStatusCounts(allIssues);
-      const total = allIssues.length;
-      const completed = allIssues.filter(isEffectivelyCompleted).length;
-      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return targets.map((p) => ({ id: p.id, name: p.name }));
+}
 
-      return { id: p.id, name: p.name, rootIssues, allIssues, statusCounts, total, completed, pct };
-    }),
-  );
+export async function fetchSingleProjectData(
+  apiKey: string,
+  p: { id: string; name: string },
+): Promise<ProjectData> {
+  const issuesRes = await gql<IssuesResponse>(apiKey, ISSUES_QUERY, { projectId: p.id });
+  const rawIssues = issuesRes.data?.project?.issues.nodes ?? [];
+  const allIssues = rawIssues.map(parseIssue);
+  const rootIssues = buildTree(allIssues);
+  const statusCounts = computeStatusCounts(allIssues);
+  const total = allIssues.length;
+  const completed = allIssues.filter(isEffectivelyCompleted).length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return { id: p.id, name: p.name, rootIssues, allIssues, statusCounts, total, completed, pct };
+}
 
-  const updatedAt = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(new Date());
-
+export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
+  const targetProjects = await fetchTargetProjects(apiKey);
+  const projects = await Promise.all(targetProjects.map((p) => fetchSingleProjectData(apiKey, p)));
+  const updatedAt = formatUpdatedAt();
   const timeline = computeTimeline(projects, 10);
-
   return { projects, updatedAt, timeline };
 }

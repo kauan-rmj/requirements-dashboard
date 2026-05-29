@@ -76,5 +76,5 @@ export interface ProjectData {
 export interface DashboardData {
   projects: ProjectData[];
   updatedAt: string;
-  timeline: TimelinePoint[];
+  timeline?: TimelinePoint[];
 }

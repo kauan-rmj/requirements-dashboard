@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import TeamView from '@/components/TeamView';
+import { useLinearStream } from '@/hooks/useLinearStream';
 import type { DashboardData } from '@/lib/types';
 
 function LoadingSkeleton() {
@@ -86,33 +86,9 @@ function LoadingSkeleton() {
 }
 
 export default function TeamPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/linear');
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      const json = (await res.json()) as DashboardData;
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  const { projects, loading, error, refresh } = useLinearStream();
+  const initialLoad = projects.length === 0 && loading;
+  const data: DashboardData = { projects, updatedAt: '', timeline: [] };
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
@@ -149,7 +125,7 @@ export default function TeamPage() {
         >
           <span style={{ fontSize: '13px', color: '#f87171' }}>{error}</span>
           <button
-            onClick={fetchData}
+            onClick={refresh}
             style={{
               background: '#3a2020',
               border: '1px solid #5a2020',
@@ -167,9 +143,9 @@ export default function TeamPage() {
 
       {initialLoad && <LoadingSkeleton />}
 
-      {!initialLoad && data && <TeamView data={data} loading={loading} />}
+      {projects.length > 0 && <TeamView data={data} loading={loading} />}
 
-      {!initialLoad && !data && !error && (
+      {!loading && projects.length === 0 && !error && (
         <div style={{ padding: '48px', textAlign: 'center', color: '#555', fontSize: '14px' }}>
           No data available.
         </div>

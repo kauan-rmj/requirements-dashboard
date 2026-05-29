@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RequirementsList from '@/components/RequirementsList';
+import { useLinearStream } from '@/hooks/useLinearStream';
 import type { DashboardData, LinearState } from '@/lib/types';
 
 function LoadingSkeleton() {
@@ -117,33 +118,9 @@ function RequirementsPageInner() {
   const initialStateId = searchParams.get('stateId');
   const initialProjectId = searchParams.get('projectId');
 
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/linear');
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      const json = (await res.json()) as DashboardData;
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  const { projects, loading, error, refresh } = useLinearStream();
+  const initialLoad = projects.length === 0 && loading;
+  const data: DashboardData = { projects, updatedAt: '', timeline: [] };
 
   return (
     <div
@@ -188,7 +165,7 @@ function RequirementsPageInner() {
         >
           <span style={{ fontSize: '13px', color: '#f87171' }}>{error}</span>
           <button
-            onClick={fetchData}
+            onClick={refresh}
             style={{
               background: '#3a2020',
               border: '1px solid #5a2020',
@@ -204,11 +181,9 @@ function RequirementsPageInner() {
         </div>
       )}
 
-      {/* Initial loading skeleton */}
       {initialLoad && <LoadingSkeleton />}
 
-      {/* Requirements list */}
-      {!initialLoad && data && (
+      {projects.length > 0 && (
         <RequirementsList
           data={data}
           loading={loading}
@@ -218,16 +193,8 @@ function RequirementsPageInner() {
         />
       )}
 
-      {/* Empty state */}
-      {!initialLoad && !data && !error && (
-        <div
-          style={{
-            padding: '48px',
-            textAlign: 'center',
-            color: '#555',
-            fontSize: '14px',
-          }}
-        >
+      {!loading && projects.length === 0 && !error && (
+        <div style={{ padding: '48px', textAlign: 'center', color: '#555', fontSize: '14px' }}>
           No data available.
         </div>
       )}

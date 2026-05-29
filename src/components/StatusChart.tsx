@@ -9,6 +9,7 @@ interface StatusChartProps {
   data: DashboardData;
   onRefresh: () => void;
   loading: boolean;
+  pendingCount?: number;
 }
 
 const AUTO_REFRESH_MS = 60_000;
@@ -19,7 +20,18 @@ function pctColor(pct: number): string {
   return '#f87171'; // red
 }
 
-export default function StatusChart({ data, onRefresh, loading }: StatusChartProps) {
+function PendingRow() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 24px' }}>
+      <div className="animate-pulse" style={{ width: '200px', height: '14px', background: '#242424', borderRadius: '4px', flexShrink: 0 }} />
+      <div className="animate-pulse" style={{ flex: 1, height: '28px', background: '#242424', borderRadius: '4px' }} />
+      <div className="animate-pulse" style={{ width: '44px', height: '14px', background: '#242424', borderRadius: '4px', flexShrink: 0 }} />
+      <div className="animate-pulse" style={{ width: '60px', height: '12px', background: '#242424', borderRadius: '4px', flexShrink: 0 }} />
+    </div>
+  );
+}
+
+export default function StatusChart({ data, onRefresh, loading, pendingCount = 0 }: StatusChartProps) {
   const router = useRouter();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [hovered, setHovered] = useState<{
@@ -391,6 +403,14 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
             </div>
           );
         })}
+        {pendingCount > 0 && Array.from({ length: pendingCount }).map((_, i) => (
+          <div key={`pending-${i}`}>
+            {(data.projects.length > 0 || i > 0) && (
+              <div style={{ height: '1px', background: '#232323', margin: '0 24px' }} />
+            )}
+            <PendingRow />
+          </div>
+        ))}
       </div>
     </div>
   );
