@@ -22,7 +22,15 @@ function pctColor(pct: number): string {
 export default function StatusChart({ data, onRefresh, loading }: StatusChartProps) {
   const router = useRouter();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [hovered, setHovered] = useState<{ projectId: string; stateId: string } | null>(null);
+  const [hovered, setHovered] = useState<{
+    projectId: string;
+    stateId: string;
+    relX?: number;
+    count?: number;
+    pct?: number;
+    color?: string;
+    name?: string;
+  } | null>(null);
 
   useEffect(() => {
     timerRef.current = setInterval(onRefresh, AUTO_REFRESH_MS);
@@ -240,69 +248,102 @@ export default function StatusChart({ data, onRefresh, loading }: StatusChartPro
                 <div
                   style={{
                     flex: 1,
-                    height: '28px',
-                    display: 'flex',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    background: '#111',
+                    position: 'relative',
                     minWidth: 0,
                   }}
                 >
-                  {project.total === 0 ? (
+                  {/* Tooltip */}
+                  {hovered?.projectId === project.id && hovered.relX !== undefined && (
                     <div
                       style={{
-                        flex: 1,
-                        background: '#252525',
+                        position: 'absolute',
+                        left: `${hovered.relX}px`,
+                        bottom: 'calc(100% + 6px)',
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(20,20,20,0.92)',
+                        border: '1px solid #333',
+                        borderRadius: '6px',
+                        padding: '4px 9px',
+                        fontSize: '11px',
+                        color: '#888',
+                        whiteSpace: 'nowrap',
+                        pointerEvents: 'none',
+                        zIndex: 20,
                         display: 'flex',
                         alignItems: 'center',
-                        paddingLeft: '8px',
+                        gap: '5px',
                       }}
                     >
-                      <span style={{ fontSize: '11px', color: '#555' }}>No issues</span>
+                      <span style={{ color: hovered.color, fontSize: '9px' }}>●</span>
+                      <span>{hovered.pct}%</span>
+                      <span style={{ color: '#555' }}>·</span>
+                      <span>{hovered.count} issues</span>
                     </div>
-                  ) : (
-                    statusEntries.map((sc) => {
-                      const segPct = (sc.count / project.total) * 100;
-                      if (segPct < 0.5) return null;
-                      const isThisBar = hovered?.projectId === project.id;
-                      const isActive = isThisBar && hovered?.stateId === sc.id;
-                      const dimmed = isThisBar && hovered?.stateId !== sc.id;
-                      return (
-                        <div
-                          key={sc.name}
-                          style={{
-                            width: `${segPct}%`,
-                            background: sc.color,
-                            flexShrink: 0,
-                            cursor: 'pointer',
-                            opacity: dimmed ? 0.2 : 1,
-                            transition: 'opacity 150ms ease, filter 150ms ease',
-                            filter: isActive ? 'brightness(1.15)' : 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            overflow: 'hidden',
-                          }}
-                          onMouseEnter={() => setHovered({ projectId: project.id, stateId: sc.id })}
-                          onMouseLeave={() => setHovered(null)}
-                          onClick={() => router.push(`/requirements?type=${sc.type}`)}
-                        >
-                          {isActive && segPct >= 8 && (
-                            <span style={{
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              color: 'rgba(0,0,0,0.65)',
-                              pointerEvents: 'none',
-                              whiteSpace: 'nowrap',
-                              userSelect: 'none',
-                            }}>
-                              {Math.round(segPct)}%
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })
                   )}
+                  {/* Visual bar */}
+                  <div
+                    style={{
+                      height: '28px',
+                      display: 'flex',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                      background: '#111',
+                    }}
+                  >
+                    {project.total === 0 ? (
+                      <div
+                        style={{
+                          flex: 1,
+                          background: '#252525',
+                          display: 'flex',
+                          alignItems: 'center',
+                          paddingLeft: '8px',
+                        }}
+                      >
+                        <span style={{ fontSize: '11px', color: '#555' }}>No issues</span>
+                      </div>
+                    ) : (
+                      statusEntries.map((sc) => {
+                        const segPct = (sc.count / project.total) * 100;
+                        if (segPct < 0.5) return null;
+                        const isThisBar = hovered?.projectId === project.id;
+                        const isActive = isThisBar && hovered?.stateId === sc.id;
+                        const dimmed = isThisBar && hovered?.stateId !== sc.id;
+                        return (
+                          <div
+                            key={sc.name}
+                            style={{
+                              width: `${segPct}%`,
+                              background: sc.color,
+                              flexShrink: 0,
+                              cursor: 'pointer',
+                              opacity: dimmed ? 0.2 : 1,
+                              transition: 'opacity 150ms ease, filter 150ms ease',
+                              filter: isActive ? 'brightness(1.15)' : 'none',
+                            }}
+                            onMouseEnter={(e) => {
+                              const segEl = e.currentTarget as HTMLElement;
+                              const barEl = segEl.parentElement as HTMLElement;
+                              const segRect = segEl.getBoundingClientRect();
+                              const barRect = barEl.getBoundingClientRect();
+                              const relX = segRect.left - barRect.left + segRect.width / 2;
+                              setHovered({
+                                projectId: project.id,
+                                stateId: sc.id,
+                                relX,
+                                count: sc.count,
+                                pct: Math.round(segPct),
+                                color: sc.color,
+                                name: sc.name,
+                              });
+                            }}
+                            onMouseLeave={() => setHovered(null)}
+                            onClick={() => router.push(`/requirements?type=${sc.type}`)}
+                          />
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 {/* % label */}
