@@ -77,10 +77,13 @@ function buildAssigneeData(data: DashboardData): AssigneeData[] {
 interface GroupedIssue {
   issue: IssueWithProject;
   children: IssueWithProject[];
-  isOrphanSub: boolean;
+  parentTitle?: string;
 }
 
-function groupIssues(issues: IssueWithProject[]): GroupedIssue[] {
+function groupIssues(
+  issues: IssueWithProject[],
+  issueById: Map<string, { title: string }>,
+): GroupedIssue[] {
   const ids = new Set(issues.map((i) => i.id));
   const childToParent = new Map<string, string>();
 
@@ -102,10 +105,11 @@ function groupIssues(issues: IssueWithProject[]): GroupedIssue[] {
   const result: GroupedIssue[] = [];
   for (const issue of issues) {
     if (childToParent.has(issue.id)) continue;
+    const orphanParentId = issue.parent?.id && !ids.has(issue.parent.id) ? issue.parent.id : undefined;
     result.push({
       issue,
       children: childrenByParent.get(issue.id) ?? [],
-      isOrphanSub: !!(issue.parent?.id && !ids.has(issue.parent.id)),
+      parentTitle: orphanParentId ? issueById.get(orphanParentId)?.title : undefined,
     });
   }
   return result;
@@ -115,11 +119,14 @@ function IssueItem({
   issue,
   dim,
   indent,
+  parentBreadcrumb,
 }: {
   issue: IssueWithProject;
   dim?: boolean;
   indent?: boolean;
+  parentBreadcrumb?: string;
 }) {
+  const titleTooltip = parentBreadcrumb ? `${issue.title} › ${parentBreadcrumb}` : issue.title;
   return (
     <div
       style={{
@@ -169,9 +176,14 @@ function IssueItem({
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}
-          title={issue.title}
+          title={titleTooltip}
         >
           {issue.title}
+          {parentBreadcrumb && (
+            <span style={{ fontSize: '11px', color: '#3d3d3d', marginLeft: '5px' }}>
+              › {parentBreadcrumb}
+            </span>
+          )}
         </div>
         <div style={{ fontSize: '11px', color: '#4a4a4a', marginTop: '1px' }}>
           {issue.projectName}
@@ -187,7 +199,7 @@ function IssueGroup({ group, dim }: { group: GroupedIssue; dim?: boolean }) {
       <IssueItem
         issue={group.issue}
         dim={dim}
-        indent={group.isOrphanSub}
+        parentBreadcrumb={group.parentTitle}
       />
       {group.children.map((child) => (
         <IssueItem key={child.id} issue={child} dim={dim} indent />
@@ -196,7 +208,13 @@ function IssueGroup({ group, dim }: { group: GroupedIssue; dim?: boolean }) {
   );
 }
 
-function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
+function AssigneeCard({
+  assignee,
+  issueById,
+}: {
+  assignee: AssigneeData;
+  issueById: Map<string, { title: string }>;
+}) {
   const [imgError, setImgError] = useState(false);
   const bg = avatarBg(assignee.name);
   const hasActive = assignee.current.length > 0;
@@ -289,7 +307,7 @@ function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
             >
               Doing
             </div>
-            {groupIssues(assignee.current).map((g) => (
+            {groupIssues(assignee.current, issueById).map((g) => (
               <IssueGroup key={g.issue.id} group={g} />
             ))}
           </div>
@@ -311,7 +329,7 @@ function AssigneeCard({ assignee }: { assignee: AssigneeData }) {
             >
               Recently completed
             </div>
-            {groupIssues(assignee.recent).map((g) => (
+            {groupIssues(assignee.recent, issueById).map((g) => (
               <IssueGroup key={g.issue.id} group={g} dim />
             ))}
           </div>
@@ -335,6 +353,16 @@ interface TeamViewProps {
 export default function TeamView({ data, loading }: TeamViewProps) {
   const [search, setSearch] = useState('');
   const assignees = useMemo(() => buildAssigneeData(data), [data]);
+
+  const issueById = useMemo(() => {
+    const map = new Map<string, { title: string }>();
+    for (const project of data.projects) {
+      for (const issue of project.allIssues) {
+        map.set(issue.id, { title: issue.title });
+      }
+    }
+    return map;
+  }, [data]);
 
   const filtered = useMemo(() => {
     if (!search) return assignees;
@@ -456,7 +484,7 @@ export default function TeamView({ data, loading }: TeamViewProps) {
           </div>
         )}
         {filtered.map((a) => (
-          <AssigneeCard key={a.id} assignee={a} />
+          <AssigneeCard key={a.id} assignee={a} issueById={issueById} />
         ))}
       </div>
     </div>
