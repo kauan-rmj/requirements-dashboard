@@ -52,6 +52,8 @@ function LeadAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string | nu
             fontSize: '8px',
             fontWeight: 700,
             color: '#fff',
+            cursor: 'default',
+            userSelect: 'none',
           }}
         >
           {initials(name)}
