@@ -227,29 +227,13 @@ function buildTree(issues: LinearIssue[]): IssueNode[] {
   return sortRecursive(roots);
 }
 
-// Name-based overrides take priority; type-based fallbacks cover unknowns.
-// Visual flow: unstarted (slate) → in-progress (blue→orange→violet) → completed (green) → cancelled (dim)
-const STATE_COLOR_BY_NAME: Record<string, string> = {
-  'doing':       '#60a5fa',  // blue-400
-  'in progress': '#60a5fa',
-  'qa':          '#fb923c',  // orange-400
-  'ready':       '#a78bfa',  // violet-400
-  'in review':   '#f472b6',  // pink-400
-  'done':        '#4ade80',  // green-400
-  'completed':   '#4ade80',
+const STATE_COLOR_OVERRIDES: Record<string, string> = {
+  'ready': '#a855f7',  // purple
+  'doing': '#22c55e',  // green
 };
 
-const STATE_COLOR_BY_TYPE: Record<string, string> = {
-  triage:    '#52525b',  // zinc-600
-  backlog:   '#6b7280',  // gray-500
-  unstarted: '#94a3b8',  // slate-400
-  started:   '#38bdf8',  // sky-400 fallback
-  completed: '#4ade80',  // green-400
-  cancelled: '#374151',  // gray-700
-};
-
-function resolveStateColor(name: string, type: string, apiColor: string): string {
-  return STATE_COLOR_BY_NAME[name.toLowerCase()] ?? STATE_COLOR_BY_TYPE[type] ?? apiColor;
+function resolveStateColor(name: string, apiColor: string): string {
+  return STATE_COLOR_OVERRIDES[name.toLowerCase()] ?? apiColor;
 }
 
 function computeStatusCounts(issues: LinearIssue[]): Record<string, StatusCount> {
@@ -258,7 +242,7 @@ function computeStatusCounts(issues: LinearIssue[]): Record<string, StatusCount>
   for (const issue of issues) {
     const { id, name, color, type, position } = issue.state;
     if (!counts[id]) {
-      counts[id] = { count: 0, color: resolveStateColor(name, type, color), name, type, position };
+      counts[id] = { count: 0, color: resolveStateColor(name, color), name, type, position };
     }
     counts[id].count += 1;
   }
