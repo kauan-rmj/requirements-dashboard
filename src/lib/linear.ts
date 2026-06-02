@@ -227,13 +227,22 @@ function buildTree(issues: LinearIssue[]): IssueNode[] {
   return sortRecursive(roots);
 }
 
+const STATE_COLOR_OVERRIDES: Record<string, string> = {
+  'ready': '#3b82f6',  // blue — distinct from doing
+  'doing': '#f97316',  // orange
+};
+
+function resolveStateColor(name: string, apiColor: string): string {
+  return STATE_COLOR_OVERRIDES[name.toLowerCase()] ?? apiColor;
+}
+
 function computeStatusCounts(issues: LinearIssue[]): Record<string, StatusCount> {
   const counts: Record<string, StatusCount> = {};
 
   for (const issue of issues) {
     const { id, name, color, type, position } = issue.state;
     if (!counts[id]) {
-      counts[id] = { count: 0, color, name, type, position };
+      counts[id] = { count: 0, color: resolveStateColor(name, color), name, type, position };
     }
     counts[id].count += 1;
   }
