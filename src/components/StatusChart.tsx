@@ -372,9 +372,8 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                       statusEntries.map((sc) => {
                         const segPct = (sc.count / project.total) * 100;
                         if (segPct < 0.5) return null;
-                        const isThisBar = hovered?.projectId === project.id;
-                        const isActive = isThisBar && hovered?.stateId === sc.id;
-                        const dimmed = isThisBar && hovered?.stateId !== sc.id;
+                        const isActive = hovered !== null && hovered.stateId === sc.id;
+                        const dimmed = hovered !== null && hovered.stateId !== sc.id;
                         return (
                           <div
                             key={sc.name}
