@@ -432,7 +432,7 @@ export async function fetchSingleProjectData(
 ): Promise<ProjectData> {
   const issuesRes = await gql<IssuesResponse>(apiKey, ISSUES_QUERY, { projectId: p.id });
   const rawIssues = issuesRes.data?.project?.issues.nodes ?? [];
-  const allIssues = rawIssues.map(parseIssue);
+  const allIssues = rawIssues.map(parseIssue).filter((issue) => issue.state.type !== 'cancelled');
   const rootIssues = buildTree(allIssues);
   const statusCounts = computeStatusCounts(allIssues);
   const total = allIssues.length;
