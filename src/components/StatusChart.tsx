@@ -83,6 +83,7 @@ function PendingRow() {
 export default function StatusChart({ data, onRefresh, loading, pendingCount = 0 }: StatusChartProps) {
   const router = useRouter();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [hoveredPct, setHoveredPct] = useState<string | null>(null);
   const [hovered, setHovered] = useState<{
     projectId: string;
     stateId: string;
@@ -419,13 +420,41 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                     width: '44px',
                     flexShrink: 0,
                     textAlign: 'right',
+                    position: 'relative',
                   }}
+                  onMouseEnter={() => setHoveredPct(project.id)}
+                  onMouseLeave={() => setHoveredPct(null)}
                 >
+                  {hoveredPct === project.id && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        bottom: 'calc(100% + 6px)',
+                        background: 'rgba(20,20,20,0.92)',
+                        border: '1px solid #333',
+                        borderRadius: '6px',
+                        padding: '6px 10px',
+                        fontSize: '11px',
+                        color: '#888',
+                        whiteSpace: 'nowrap',
+                        pointerEvents: 'none',
+                        zIndex: 20,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <div style={{ color: pctColor(project.pct), fontWeight: 600, marginBottom: '2px' }}>
+                        {project.completed} de {project.total} issues
+                      </div>
+                      <div style={{ color: '#555', fontSize: '10px' }}>concluídas ou em ambiente</div>
+                    </div>
+                  )}
                   <span
                     style={{
                       fontSize: '13px',
                       fontWeight: 600,
                       color: pctColor(project.pct),
+                      cursor: 'default',
                     }}
                   >
                     {project.pct}%
