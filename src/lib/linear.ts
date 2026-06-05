@@ -230,7 +230,7 @@ function buildTree(issues: LinearIssue[]): IssueNode[] {
 const STATE_COLOR_OVERRIDES: Record<string, string> = {
   'ready': '#a855f7',  // purple
   'doing': '#15803d',  // dark green
-  'done':  '#7FFF00',  // chartreuse
+  'done':  '#22c55e',
 };
 
 function resolveStateColor(name: string, apiColor: string): string {
