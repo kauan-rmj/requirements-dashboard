@@ -443,10 +443,13 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                         textAlign: 'left',
                       }}
                     >
-                      <div style={{ color: pctColor(project.pct), fontWeight: 600, marginBottom: '2px' }}>
-                        {project.completed} de {project.total} issues
+                      <div style={{ color: '#aaa', lineHeight: '1.5' }}>
+                        Issues <span style={{ color: '#22c55e' }}>entregues em produção</span> (Done)
                       </div>
-                      <div style={{ color: '#555', fontSize: '10px' }}>concluídas ou em ambiente</div>
+                      <div style={{ color: '#aaa', lineHeight: '1.5' }}>
+                        + implementadas e validadas em{' '}
+                        <span style={{ color: '#a78bfa' }}>homologação</span> aguardando release (Ready + HML)
+                      </div>
                     </div>
                   )}
                   <span
