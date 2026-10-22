@@ -53,7 +53,7 @@ const CHARTS: { key: Exclude<ChartKey, 'total'>; title: string; sub: string; col
 export default function CostsPage() {
   const [months, setMonths] = useState<number | null>(null);
   const [modes, setModes] = useState<Record<ChartKey, ChartMode>>({
-    total: 'bar',
+    total: 'line',
     perRequest: 'line',
     perConversation: 'line',
     responseTime: 'line',
