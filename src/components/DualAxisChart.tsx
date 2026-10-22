@@ -13,7 +13,7 @@ interface Series {
 
 interface DualAxisChartProps {
   mode: ChartMode;
-  left: Series;
+  left: Series[]; // share the primary (left) y axis
   right: Series;
 }
 
@@ -35,7 +35,8 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
 
-  const n = left.points.length;
+  const all = [...left, right];
+  const n = left[0]?.points.length ?? 0;
   const isBar = mode === 'bar';
 
   const handleMouseMove = useCallback(
@@ -57,15 +58,16 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
   }
 
   const slot = CHART_W / n;
-  const barW = Math.min(28, slot * 0.32);
+  const barW = Math.min(22, (slot * 0.8) / all.length - 1);
   const xAt = (i: number) =>
     isBar ? PAD.left + slot * (i + 0.5) : PAD.left + (i / Math.max(n - 1, 1)) * CHART_W;
-  const scaleFor = (s: Series) => {
-    const yMax = niceMax(Math.max(...s.points.map((p) => p.value)));
+  const scaleFor = (group: Series[]) => {
+    const yMax = niceMax(Math.max(...group.flatMap((s) => s.points.map((p) => p.value))));
     return { yMax, yAt: (v: number) => PAD.top + CHART_H - (v / yMax) * CHART_H };
   };
   const L = scaleFor(left);
-  const R = scaleFor(right);
+  const R = scaleFor([right]);
+  const leftColor = left.length === 1 ? left[0].color : '#888';
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 
   const renderBars = (s: Series, yAt: (v: number) => number, offset: number) => {
@@ -104,7 +106,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
           points={solid.map((p, i) => `${xAt(i)},${yAt(p.value)}`).join(' ')}
           fill="none"
           stroke={s.color}
-          strokeWidth={2.5}
+          strokeWidth={s === right ? 5 : 2.5}
           strokeLinejoin="round"
           strokeLinecap="round"
         />
@@ -113,7 +115,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
             points={[n - 2, n - 1].map((i) => `${xAt(i)},${yAt(s.points[i].value)}`).join(' ')}
             fill="none"
             stroke={s.color}
-            strokeWidth={2.5}
+            strokeWidth={s === right ? 5 : 2.5}
             strokeDasharray="5,4"
             strokeLinecap="round"
           />
@@ -134,8 +136,8 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
   };
 
   const hoverX = hoverIndex !== null ? xAt(hoverIndex) : null;
-  const tooltipWidth = 170;
-  const tooltipHeight = 64;
+  const tooltipWidth = 200;
+  const tooltipHeight = 24 + all.length * 16 + 8;
   let tooltipX = hoverX !== null ? hoverX + 8 : 0;
   if (tooltipX + tooltipWidth > VIEW_W - PAD.right) tooltipX = (hoverX ?? 0) - tooltipWidth - 8;
   const tooltipY = PAD.top + 4;
@@ -148,8 +150,8 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
           return (
             <g key={f}>
               <line x1={PAD.left} y1={y} x2={PAD.left + CHART_W} y2={y} stroke="#2a2a2a" strokeWidth={1} />
-              <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize={10} fill={left.color}>
-                {left.axisFormat(f * L.yMax)}
+              <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize={10} fill={leftColor}>
+                {left[0].axisFormat(f * L.yMax)}
               </text>
               <text x={PAD.left + CHART_W + 6} y={y + 4} textAnchor="start" fontSize={10} fill={right.color}>
                 {right.axisFormat(f * R.yMax)}
@@ -158,10 +160,12 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
           );
         })}
 
-        {isBar ? renderBars(left, L.yAt, -barW - 1) : renderLine(left, L.yAt)}
-        {isBar ? renderBars(right, R.yAt, 1) : renderLine(right, R.yAt)}
+        {isBar
+          ? all.map((s, j) => renderBars(s, s === right ? R.yAt : L.yAt, (j - all.length / 2) * (barW + 1)))
+          : /* right series first and thicker, so a left series that overlaps it stays visible */
+            [right, ...left].map((s) => renderLine(s, s === right ? R.yAt : L.yAt))}
 
-        {left.points.map((p, i) => (
+        {left[0].points.map((p, i) => (
           <text key={p.label} x={xAt(i)} y={PAD.top + CHART_H + 18} fontSize={10} fill="#666" textAnchor="middle">
             {p.label}
           </text>
@@ -185,10 +189,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
             ) : (
               <>
                 <line x1={hoverX} y1={PAD.top} x2={hoverX} y2={PAD.top + CHART_H} stroke="#555" strokeWidth={1} strokeDasharray="4,3" pointerEvents="none" />
-                {[
-                  { s: left, sc: L },
-                  { s: right, sc: R },
-                ].map(({ s, sc }) =>
+                {all.map((s) => ({ s, sc: s === right ? R : L })).map(({ s, sc }) =>
                   hidden[s.name] ? null : (
                     <circle key={s.name} cx={hoverX} cy={sc.yAt(s.points[hoverIndex].value)} r={4} fill={s.color} stroke="#111" strokeWidth={1.5} pointerEvents="none" />
                   ),
@@ -198,22 +199,21 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
             <g pointerEvents="none">
               <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight} rx={5} ry={5} fill="#111" stroke="#333" strokeWidth={1} />
               <text x={tooltipX + 8} y={tooltipY + 16} fontSize={10} fill="#aaa">
-                {left.points[hoverIndex].label}
-                {left.points[hoverIndex].partial ? ' (parcial)' : ''}
+                {left[0].points[hoverIndex].label}
+                {left[0].points[hoverIndex].partial ? ' (parcial)' : ''}
               </text>
-              <text x={tooltipX + 8} y={tooltipY + 33} fontSize={10} fill={left.color}>
-                {left.name}: <tspan fill="#e5e5e5">{left.valueFormat(left.points[hoverIndex].value)}</tspan>
-              </text>
-              <text x={tooltipX + 8} y={tooltipY + 49} fontSize={10} fill={right.color}>
-                {right.name}: <tspan fill="#e5e5e5">{right.valueFormat(right.points[hoverIndex].value)}</tspan>
-              </text>
+              {all.map((s, j) => (
+                <text key={s.name} x={tooltipX + 8} y={tooltipY + 33 + j * 16} fontSize={10} fill={s.color}>
+                  {s.name}: <tspan fill="#e5e5e5">{s.valueFormat(s.points[hoverIndex].value)}</tspan>
+                </text>
+              ))}
             </g>
           </>
         )}
       </svg>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px', paddingLeft: `${PAD.left}px` }}>
-        {[left, right].map((s) => {
+        {all.map((s) => {
           const off = hidden[s.name];
           return (
             <button

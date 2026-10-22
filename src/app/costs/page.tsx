@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MONTH_COSTS } from '@/lib/costs';
+import { MONTH_COSTS, BILLING_PER_CONVERSATION } from '@/lib/costs';
 import MonthlyChart, { type ChartMode } from '@/components/MonthlyChart';
 import DualAxisChart from '@/components/DualAxisChart';
 import ChartModeToggle from '@/components/ChartModeToggle';
@@ -103,22 +103,31 @@ export default function CostsPage() {
         <div style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: '10px', padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo total e conversas por mês</h2>
+              <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo, cobrança e conversas por mês</h2>
               <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
-                Custo: soma de cost_control.cost, USD (eixo esquerdo). Conversas válidas, sem teste/dev e deletadas (eixo direito).
+                Custo (soma de cost_control.cost) e cobrança estimada (conversas × $0,20 em média), USD, no eixo esquerdo. Conversas válidas, sem teste/dev e deletadas, no eixo direito.
               </p>
             </div>
             <ChartModeToggle mode={modes.total} onChange={(m) => setMode('total', m)} />
           </div>
           <DualAxisChart
             mode={modes.total}
-            left={{
-              name: 'Custo total (USD)',
-              color: '#22c55e',
-              points: rows.map((m) => ({ label: m.label, value: m.cost, partial: m.partial })),
-              axisFormat: (v) => usd(v, 0),
-              valueFormat: (v) => usd(v, 0),
-            }}
+            left={[
+              {
+                name: 'Custo total (USD)',
+                color: '#22c55e',
+                points: rows.map((m) => ({ label: m.label, value: m.cost, partial: m.partial })),
+                axisFormat: (v) => usd(v, 0),
+                valueFormat: (v) => usd(v, 0),
+              },
+              {
+                name: 'Cobrança estimada (USD)',
+                color: '#f59e0b',
+                points: rows.map((m) => ({ label: m.label, value: m.conv * BILLING_PER_CONVERSATION, partial: m.partial })),
+                axisFormat: (v) => usd(v, 0),
+                valueFormat: (v) => usd(v, 0),
+              },
+            ]}
             right={{
               name: 'Conversas',
               color: '#4f8ef7',

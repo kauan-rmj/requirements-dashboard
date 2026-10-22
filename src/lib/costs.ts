@@ -22,3 +22,6 @@ export const MONTH_COSTS: MonthCost[] = [
   { label: 'Set/26', cost: 6722.060403, requests: 1431180, conv: 286917, ctSum: 15954751559, ctCount: 1396142, partial: false },
   { label: 'Out/26*', cost: 3000.563527, requests: 934420, conv: 253237, ctSum: 9968278411, ctCount: 912266, partial: true },
 ];
+
+// Average amount billed per conversation, USD (estimate: billing = conv × BILLING_PER_CONVERSATION).
+export const BILLING_PER_CONVERSATION = 0.2;
