@@ -26,13 +26,25 @@ export function useLinearStream(): StreamState & { refresh: () => void } {
   });
 
   const abortRef = useRef<AbortController | null>(null);
+  const hasDataRef = useRef(false);
 
   const startStream = useCallback(async () => {
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
 
-    setState({ projects: [], totalProjects: null, updatedAt: null, loading: true, error: null });
+    // On refresh keep the current data on screen and swap it in once the new stream completes,
+    // so the legend/bars don't rebuild from empty while projects arrive. Only the first load streams in progressively.
+    const background = hasDataRef.current;
+    const incoming: ProjectData[] = [];
+    const sortProjects = (list: ProjectData[]) =>
+      [...list].sort((a, b) => a.total - b.total || a.name.localeCompare(b.name));
+
+    if (background) {
+      setState((s) => ({ ...s, loading: true, error: null }));
+    } else {
+      setState({ projects: [], totalProjects: null, updatedAt: null, loading: true, error: null });
+    }
 
     try {
       const res = await fetch('/api/linear-stream', { signal: ac.signal });
@@ -57,14 +69,16 @@ export function useLinearStream(): StreamState & { refresh: () => void } {
           const chunk = JSON.parse(line) as StreamChunk;
 
           if (chunk.type === 'meta') {
-            setState((s) => ({ ...s, totalProjects: chunk.total, updatedAt: chunk.updatedAt }));
+            if (background) {
+              setState((s) => ({ ...s, updatedAt: chunk.updatedAt }));
+            } else {
+              setState((s) => ({ ...s, totalProjects: chunk.total, updatedAt: chunk.updatedAt }));
+            }
           } else if (chunk.type === 'project') {
-            setState((s) => ({
-              ...s,
-              projects: [...s.projects, chunk.data].sort(
-                (a, b) => a.total - b.total || a.name.localeCompare(b.name),
-              ),
-            }));
+            incoming.push(chunk.data);
+            if (!background) {
+              setState((s) => ({ ...s, projects: sortProjects(incoming) }));
+            }
           } else if (chunk.type === 'error') {
             throw new Error(chunk.message);
           }
@@ -80,7 +94,12 @@ export function useLinearStream(): StreamState & { refresh: () => void } {
       return;
     }
 
-    setState((s) => ({ ...s, loading: false }));
+    hasDataRef.current = incoming.length > 0;
+    setState((s) => ({
+      ...s,
+      projects: background ? sortProjects(incoming) : s.projects,
+      loading: false,
+    }));
   }, []);
 
   useEffect(() => {
