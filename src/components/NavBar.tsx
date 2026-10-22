@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ListTree, BarChart2, TrendingUp, Users } from 'lucide-react';
+import { LayoutDashboard, ListTree, BarChart2, DollarSign, TrendingUp, Users } from 'lucide-react';
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -12,6 +12,7 @@ export default function NavBar() {
     { href: '/requirements', label: 'Requirements', icon: ListTree },
     { href: '/team', label: 'Team', icon: Users },
     { href: '/timeline', label: 'Timeline', icon: TrendingUp },
+    { href: '/costs', label: 'Costs', icon: DollarSign },
   ];
 
   return (

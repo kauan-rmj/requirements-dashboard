@@ -1,0 +1,108 @@
+'use client';
+
+import { useState } from 'react';
+import { MONTH_COSTS } from '@/lib/costs';
+import MonthlyLineChart from '@/components/MonthlyLineChart';
+
+const RANGE_OPTIONS: { label: string; value: number | null }[] = [
+  { label: '3M', value: 3 },
+  { label: '6M', value: 6 },
+  { label: 'All', value: null },
+];
+
+const usd = (v: number, d: number) =>
+  v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: d, maximumFractionDigits: d });
+
+const CHARTS = [
+  {
+    title: 'Custo por requisição',
+    sub: 'Custo total do mês ÷ requisições em request_control',
+    color: '#22c55e',
+    tooltipLabel: 'Custo / req.',
+    axisFormat: (v: number) => usd(v, 4),
+    valueFormat: (v: number) => usd(v, 4),
+    accessor: (m: (typeof MONTH_COSTS)[number]) => m.cost / m.requests,
+  },
+  {
+    title: 'Custo por conversa',
+    sub: 'Custo total do mês ÷ conversas válidas (sem teste/dev e deletadas)',
+    color: '#4f8ef7',
+    tooltipLabel: 'Custo / conv.',
+    axisFormat: (v: number) => usd(v, 2),
+    valueFormat: (v: number) => usd(v, 3),
+    accessor: (m: (typeof MONTH_COSTS)[number]) => m.cost / m.conv,
+  },
+  {
+    title: 'Tempo de resposta médio',
+    sub: 'Média de request_control.completion_time por mês, em segundos',
+    color: '#f59e0b',
+    tooltipLabel: 'Tempo médio',
+    axisFormat: (v: number) => `${Math.round(v * 10) / 10} s`,
+    valueFormat: (v: number) => `${v.toFixed(1)} s`,
+    accessor: (m: (typeof MONTH_COSTS)[number]) => m.ctSum / m.ctCount / 1000,
+  },
+];
+
+export default function CostsPage() {
+  const [months, setMonths] = useState<number | null>(null);
+  const rows = months === null ? MONTH_COSTS : MONTH_COSTS.slice(-months);
+
+  return (
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#e5e5e5', letterSpacing: '-0.02em' }}>
+          Costs
+        </h1>
+        <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#555' }}>
+          Monthly platform cost efficiency · USD · Out/26* é parcial (01/10 a 21/10)
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {RANGE_OPTIONS.map((option) => {
+            const isActive = months === option.value;
+            return (
+              <button
+                key={option.label}
+                onClick={() => setMonths(option.value)}
+                style={{
+                  background: isActive ? '#1a2a4a' : 'transparent',
+                  border: isActive ? '1px solid #4f8ef7' : '1px solid #3a3a3a',
+                  color: isActive ? '#4f8ef7' : '#888',
+                  borderRadius: '6px',
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: isActive ? 600 : 400,
+                  transition: 'all 150ms ease',
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {CHARTS.map((c) => (
+          <div
+            key={c.title}
+            style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: '10px', padding: '24px' }}
+          >
+            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>{c.title}</h2>
+            <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>{c.sub}</p>
+            <MonthlyLineChart
+              points={rows.map((m) => ({ label: m.label, value: c.accessor(m), partial: m.partial }))}
+              color={c.color}
+              tooltipLabel={c.tooltipLabel}
+              axisFormat={c.axisFormat}
+              valueFormat={c.valueFormat}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
