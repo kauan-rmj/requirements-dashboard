@@ -130,8 +130,8 @@ export default function V3TablePage() {
                 </th>
                 <th style={{ ...th, width: '140px' }}>Prioridade</th>
                 <th style={{ ...th, width: '22%' }}>Funcionalidade</th>
-                <th style={{ ...th, width: '88px' }}>Responsável</th>
-                <th style={{ ...th, width: '110px' }}>Validadores</th>
+                <th style={{ ...th, width: '100px' }}>Responsável</th>
+                <th style={{ ...th, width: '130px' }}>Validadores</th>
                 <th style={{ ...th, width: '200px' }}>Status</th>
                 <th style={th}>Teste</th>
                 <th style={{ ...th, width: '76px' }} />
@@ -162,7 +162,7 @@ export default function V3TablePage() {
                       <V3Select
                         value={t.assigneeId ?? ''}
                         bare
-                        options={userOptions('Sem responsável', ASSIGNEE_USER_IDS, t.assigneeId)}
+                        options={userOptions('Sem responsável', ASSIGNEE_USER_IDS, t.assigneeId, 28)}
                         onChange={(v) => save(t.id, { assigneeId: v || null })}
                       />
                     </div>
@@ -171,7 +171,7 @@ export default function V3TablePage() {
                     <V3MultiSelect
                       bare
                       values={t.validatorIds}
-                      options={userOptions('').slice(1)}
+                      options={userOptions('', undefined, null, 28).slice(1)}
                       onChange={(v) => save(t.id, { validatorIds: v })}
                     />
                   </td>

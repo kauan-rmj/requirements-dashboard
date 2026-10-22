@@ -27,7 +27,7 @@ interface V3Context {
   save: (id: number, patch: Partial<V3Test>, debounce?: number) => void;
   create: (draft: Draft) => Promise<void>;
   remove: (id: number) => Promise<void>;
-  userOptions: (emptyLabel: string, only?: string[], current?: string | null) => { value: string; label: string; icon?: ReactNode }[];
+  userOptions: (emptyLabel: string, only?: string[], current?: string | null, iconSize?: number) => { value: string; label: string; icon?: ReactNode }[];
 }
 
 const Ctx = createContext<V3Context | null>(null);
@@ -105,11 +105,11 @@ export default function V3Provider({ children }: { children: ReactNode }) {
   }, []);
 
   // `current` stays selectable even when outside `only` (e.g. an assignee set in Linear).
-  const userOptions: V3Context['userOptions'] = (emptyLabel, only, current) => [
+  const userOptions: V3Context['userOptions'] = (emptyLabel, only, current, iconSize = 20) => [
     { value: '', label: emptyLabel },
     ...users
       .filter((u) => !only || only.includes(u.id) || u.id === current)
-      .map((u) => ({ value: u.id, label: u.name, icon: <V3Avatar name={u.name} avatarUrl={u.avatarUrl} size={20} tooltip={false} /> })),
+      .map((u) => ({ value: u.id, label: u.name, icon: <V3Avatar name={u.name} avatarUrl={u.avatarUrl} size={iconSize} tooltip={false} /> })),
   ];
 
   return (
