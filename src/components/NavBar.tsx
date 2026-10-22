@@ -8,12 +8,12 @@ export default function NavBar() {
   const pathname = usePathname();
 
   const navLinks = [
+    { href: '/v3', label: 'V3', icon: FlaskConical },
     { href: '/', label: 'Dashboard', icon: BarChart2 },
     { href: '/requirements', label: 'Requirements', icon: ListTree },
     { href: '/team', label: 'Team', icon: Users },
     { href: '/timeline', label: 'Timeline', icon: TrendingUp },
     { href: '/costs', label: 'Costs', icon: DollarSign },
-    { href: '/v3', label: 'V3', icon: FlaskConical },
   ];
 
   return (
@@ -49,7 +49,7 @@ export default function NavBar() {
       {/* Nav links */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         {navLinks.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href;
+          const isActive = pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
           return (
             <Link
               key={href}
