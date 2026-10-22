@@ -403,7 +403,7 @@ export default function RequirementsList({ data, loading, initialTypeFilter, ini
 
   // Pre-select status filter: specific stateId takes priority over type-based filter
   const [statusFilter, setStatusFilter] = useState<Set<string>>(() => {
-    if (initialStateId) return new Set([initialStateId]);
+    if (initialStateId) return new Set(initialStateId.split(','));
     if (!initialTypeFilter) return new Set();
     const ids = new Set<string>();
     for (const project of data.projects) {

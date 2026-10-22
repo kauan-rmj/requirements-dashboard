@@ -63,6 +63,21 @@ function LeadAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string | nu
   );
 }
 
+type GroupedStatus = StatusCount & { key: string; ids: string[] };
+
+// Linear workflow states are per team, so the same "Done" has a different id in each team.
+// Group by name + type so they show up as a single status.
+function addToGroup(groups: Map<string, GroupedStatus>, stateId: string, sc: StatusCount, count: number) {
+  const key = `${sc.name.toLowerCase()}|${sc.type}`;
+  const existing = groups.get(key);
+  if (existing) {
+    existing.count += count;
+    existing.ids.push(stateId);
+  } else {
+    groups.set(key, { ...sc, count, key, ids: [stateId] });
+  }
+}
+
 function pctColor(pct: number): string {
   if (pct >= 90) return '#4ade80'; // green
   if (pct >= 70) return '#fbbf24'; // amber
@@ -86,7 +101,7 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
   const [hoveredPct, setHoveredPct] = useState<string | null>(null);
   const [hovered, setHovered] = useState<{
     projectId: string;
-    stateId: string;
+    stateKey: string;
     relX?: number;
     count?: number;
     pct?: number;
@@ -101,17 +116,12 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
     };
   }, [onRefresh]);
 
-  const legendMap = new Map<string, StatusCount & { globalCount: number; id: string }>();
+  const legendMap = new Map<string, GroupedStatus>();
   let grandTotal = 0;
 
   for (const project of data.projects) {
     for (const [stateId, sc] of Object.entries(project.statusCounts)) {
-      const existing = legendMap.get(stateId);
-      if (existing) {
-        existing.globalCount += sc.count;
-      } else {
-        legendMap.set(stateId, { ...sc, globalCount: sc.count, id: stateId });
-      }
+      addToGroup(legendMap, stateId, sc, sc.count);
       grandTotal += sc.count;
     }
   }
@@ -213,11 +223,11 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
           }}
         >
           {legendItems.map((item) => {
-            const pct = grandTotal > 0 ? Math.round((item.globalCount / grandTotal) * 100) : 0;
-            const dimmed = hovered !== null && hovered.stateId !== item.id;
+            const pct = grandTotal > 0 ? Math.round((item.count / grandTotal) * 100) : 0;
+            const dimmed = hovered !== null && hovered.stateKey !== item.key;
             return (
               <div
-                key={`${item.name}-${item.type}`}
+                key={item.key}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -226,7 +236,7 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                   transition: 'opacity 150ms ease',
                   cursor: 'default',
                 }}
-                onMouseEnter={() => setHovered({ projectId: '', stateId: item.id })}
+                onMouseEnter={() => setHovered({ projectId: '', stateKey: item.key })}
                 onMouseLeave={() => setHovered(null)}
               >
                 <div
@@ -245,7 +255,7 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                   {pct}%
                 </span>
                 <span style={{ fontSize: '11px', color: '#444' }}>
-                  ({item.globalCount})
+                  ({item.count})
                 </span>
               </div>
             );
@@ -268,9 +278,11 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
           </div>
         )}
         {data.projects.map((project, idx) => {
-          const statusEntries = Object.entries(project.statusCounts)
-            .map(([id, sc]) => ({ ...sc, id }))
-            .sort(stateSort);
+          const projectGroups = new Map<string, GroupedStatus>();
+          for (const [stateId, sc] of Object.entries(project.statusCounts)) {
+            addToGroup(projectGroups, stateId, sc, sc.count);
+          }
+          const statusEntries = Array.from(projectGroups.values()).sort(stateSort);
 
           return (
             <div key={project.id}>
@@ -375,11 +387,11 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                         if (segPct < 0.5) return null;
                         const isLegendHover = hovered?.projectId === '';
                         const isThisBar = hovered?.projectId === project.id;
-                        const isActive = hovered !== null && hovered.stateId === sc.id && (isLegendHover || isThisBar);
-                        const dimmed = hovered !== null && hovered.stateId !== sc.id && (isLegendHover || isThisBar);
+                        const isActive = hovered !== null && hovered.stateKey === sc.key && (isLegendHover || isThisBar);
+                        const dimmed = hovered !== null && hovered.stateKey !== sc.key && (isLegendHover || isThisBar);
                         return (
                           <div
-                            key={sc.name}
+                            key={sc.key}
                             style={{
                               width: `${segPct}%`,
                               background: sc.color,
@@ -397,7 +409,7 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                               const relX = segRect.left - barRect.left + segRect.width / 2;
                               setHovered({
                                 projectId: project.id,
-                                stateId: sc.id,
+                                stateKey: sc.key,
                                 relX,
                                 count: sc.count,
                                 pct: Math.round(segPct),
@@ -406,7 +418,7 @@ export default function StatusChart({ data, onRefresh, loading, pendingCount = 0
                               });
                             }}
                             onMouseLeave={() => setHovered(null)}
-                            onClick={() => router.push(`/requirements?stateId=${sc.id}&projectId=${project.id}`)}
+                            onClick={() => router.push(`/requirements?stateId=${sc.ids.join(',')}&projectId=${project.id}`)}
                           />
                         );
                       })
