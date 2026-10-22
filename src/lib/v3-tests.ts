@@ -14,6 +14,7 @@ export interface V3Test {
   milestone: string;
   feature: string;
   assigneeId: string | null;
+  validatorId: string | null;
   test: string;
   status: V3Status;
 }
@@ -37,3 +38,14 @@ export interface V3User {
   name: string;
   avatarUrl: string | null;
 }
+
+// Only these Linear users can be picked as responsável (Gabriel, Ana, André, Athos, Robert, Marlos, Patrick).
+export const ASSIGNEE_USER_IDS = [
+  'a951136f-ffcd-4925-92e0-affbbf7ff120',
+  'e5fbc004-ac52-49fc-9a6b-6f3c07c40b7e',
+  'a3e9b6dd-5407-4ebc-8515-ebc601bbbf06',
+  '15bce7b4-bf16-4bd0-a74e-6a8212745082',
+  '74dc4a51-4c8f-4d39-8fbf-70f5c8282a92',
+  '26469042-c560-4706-9be2-8d7df0f271ad',
+  'b763fcdc-97b8-4853-90b9-ca698afa84d8',
+];

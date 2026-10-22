@@ -25,3 +25,4 @@ CREATE TABLE IF NOT EXISTS v3_users (
   avatar_url TEXT
 );
 ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS assignee_id TEXT;
+ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS validator_id TEXT;
