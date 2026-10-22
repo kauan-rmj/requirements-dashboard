@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sql, isV3Status } from '@/lib/v3-tests';
+import { sql, isV3Status, isV3Priority } from '@/lib/v3-tests';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -10,6 +10,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (b.status !== undefined && !isV3Status(b.status)) {
       return NextResponse.json({ error: 'invalid status' }, { status: 400 });
     }
+    if (b.priority !== undefined && !isV3Priority(b.priority)) {
+      return NextResponse.json({ error: 'invalid priority' }, { status: 400 });
+    }
     const rows = await sql()`
       UPDATE v3_tests SET
         milestone = COALESCE(${b.milestone ?? null}, milestone),
@@ -17,10 +20,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
         test = COALESCE(${b.test ?? null}, test),
         status = COALESCE(${b.status ?? null}, status),
         assignee_id = CASE WHEN ${'assigneeId' in b}::boolean THEN ${b.assigneeId || null} ELSE assignee_id END,
+        priority = COALESCE(${b.priority ?? null}, priority),
         validator_id = CASE WHEN ${'validatorId' in b}::boolean THEN ${b.validatorId || null} ELSE validator_id END,
         updated_at = now()
       WHERE id = ${id}
-      RETURNING id::int AS id, milestone, feature, test, status, assignee_id AS "assigneeId", validator_id AS "validatorId"`;
+      RETURNING id::int AS id, milestone, feature, test, status, assignee_id AS "assigneeId", validator_id AS "validatorId", priority`;
     if (!rows.length) return NextResponse.json({ error: 'not found' }, { status: 404 });
     return NextResponse.json({ test: rows[0] });
   } catch (e) {

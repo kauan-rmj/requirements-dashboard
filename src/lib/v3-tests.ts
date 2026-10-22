@@ -5,6 +5,7 @@ export const V3_STATUSES = [
   { value: 'validado_qa', label: 'Validado por QA', color: '#22c55e' },
   { value: 'correcao_pendente', label: 'Correção pendente', color: '#f87171' },
   { value: 'validacao_pendente', label: 'Validação pendente', color: '#f59e0b' },
+  { value: 'especificacao_pendente', label: 'Especificação pendente', color: '#a78bfa' },
 ] as const;
 
 export type V3Status = (typeof V3_STATUSES)[number]['value'];
@@ -15,9 +16,22 @@ export interface V3Test {
   feature: string;
   assigneeId: string | null;
   validatorId: string | null;
+  priority: V3Priority;
   test: string;
   status: V3Status;
 }
+
+export const V3_PRIORITIES = [
+  { value: 'urgente', label: 'Urgente', color: '#f87171' },
+  { value: 'alta', label: 'Alta', color: '#fb923c' },
+  { value: 'media', label: 'Média', color: '#fbbf24' },
+  { value: 'baixa', label: 'Baixa', color: '#60a5fa' },
+  { value: 'sem_prioridade', label: 'Sem prioridade', color: '#777' },
+] as const;
+
+export type V3Priority = (typeof V3_PRIORITIES)[number]['value'];
+
+export const isV3Priority = (v: unknown): v is V3Priority => V3_PRIORITIES.some((p) => p.value === v);
 
 export const isV3Status = (v: unknown): v is V3Status => V3_STATUSES.some((s) => s.value === v);
 
