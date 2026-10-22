@@ -11,7 +11,7 @@ interface Series {
   valueFormat: (v: number) => string;
 }
 
-interface DualAxisLineChartProps {
+interface DualAxisBarChartProps {
   left: Series;
   right: Series;
 }
@@ -30,7 +30,7 @@ function niceMax(n: number): number {
   return nice * exp;
 }
 
-export default function DualAxisLineChart({ left, right }: DualAxisLineChartProps) {
+export default function DualAxisBarChart({ left, right }: DualAxisBarChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
 
@@ -40,7 +40,7 @@ export default function DualAxisLineChart({ left, right }: DualAxisLineChartProp
     (e: React.MouseEvent<SVGRectElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
       const svgX = ((e.clientX - rect.left) / rect.width) * CHART_W;
-      const index = Math.round((svgX / CHART_W) * (n - 1));
+      const index = Math.floor((svgX / CHART_W) * n);
       setHoverIndex(Math.max(0, Math.min(n - 1, index)));
     },
     [n],
@@ -54,7 +54,9 @@ export default function DualAxisLineChart({ left, right }: DualAxisLineChartProp
     );
   }
 
-  const xAt = (i: number) => PAD.left + (i / Math.max(n - 1, 1)) * CHART_W;
+  const slot = CHART_W / n;
+  const barW = Math.min(28, slot * 0.32);
+  const xAt = (i: number) => PAD.left + slot * (i + 0.5);
   const scaleFor = (s: Series) => {
     const yMax = niceMax(Math.max(...s.points.map((p) => p.value)));
     return { yMax, yAt: (v: number) => PAD.top + CHART_H - (v / yMax) * CHART_H };
@@ -63,41 +65,28 @@ export default function DualAxisLineChart({ left, right }: DualAxisLineChartProp
   const R = scaleFor(right);
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 
-  const renderLine = (s: Series, yAt: (v: number) => number) => {
+  const renderBars = (s: Series, yAt: (v: number) => number, offset: number) => {
     if (hidden[s.name]) return null;
-    const lastPartial = s.points[n - 1].partial && n > 1;
-    const solid = lastPartial ? s.points.slice(0, -1) : s.points;
     return (
       <g key={s.name}>
-        <polyline
-          points={solid.map((p, i) => `${xAt(i)},${yAt(p.value)}`).join(' ')}
-          fill="none"
-          stroke={s.color}
-          strokeWidth={2.5}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {lastPartial && (
-          <polyline
-            points={[n - 2, n - 1].map((i) => `${xAt(i)},${yAt(s.points[i].value)}`).join(' ')}
-            fill="none"
-            stroke={s.color}
-            strokeWidth={2.5}
-            strokeDasharray="5,4"
-            strokeLinecap="round"
-          />
-        )}
-        {s.points.map((p, i) => (
-          <circle
-            key={p.label}
-            cx={xAt(i)}
-            cy={yAt(p.value)}
-            r={3}
-            fill={p.partial ? '#1a1a1a' : s.color}
-            stroke={s.color}
-            strokeWidth={p.partial ? 1.5 : 0}
-          />
-        ))}
+        {s.points.map((p, i) => {
+          const y = yAt(p.value);
+          return (
+            <rect
+              key={p.label}
+              x={xAt(i) + offset}
+              y={y}
+              width={barW}
+              height={PAD.top + CHART_H - y}
+              rx={2}
+              fill={s.color}
+              fillOpacity={p.partial ? 0.35 : 0.9}
+              stroke={s.color}
+              strokeWidth={p.partial ? 1.5 : 0}
+              strokeDasharray={p.partial ? '4,3' : undefined}
+            />
+          );
+        })}
       </g>
     );
   };
@@ -127,8 +116,8 @@ export default function DualAxisLineChart({ left, right }: DualAxisLineChartProp
           );
         })}
 
-        {renderLine(left, L.yAt)}
-        {renderLine(right, R.yAt)}
+        {renderBars(left, L.yAt, -barW - 1)}
+        {renderBars(right, R.yAt, 1)}
 
         {left.points.map((p, i) => (
           <text key={p.label} x={xAt(i)} y={PAD.top + CHART_H + 18} fontSize={10} fill="#666" textAnchor="middle">
@@ -149,15 +138,7 @@ export default function DualAxisLineChart({ left, right }: DualAxisLineChartProp
 
         {hoverX !== null && hoverIndex !== null && (
           <>
-            <line x1={hoverX} y1={PAD.top} x2={hoverX} y2={PAD.top + CHART_H} stroke="#555" strokeWidth={1} strokeDasharray="4,3" pointerEvents="none" />
-            {[
-              { s: left, sc: L },
-              { s: right, sc: R },
-            ].map(({ s, sc }) =>
-              hidden[s.name] ? null : (
-                <circle key={s.name} cx={hoverX} cy={sc.yAt(s.points[hoverIndex].value)} r={4} fill={s.color} stroke="#111" strokeWidth={1.5} pointerEvents="none" />
-              ),
-            )}
+            <rect x={PAD.left + slot * hoverIndex} y={PAD.top} width={slot} height={CHART_H} fill="#ffffff" fillOpacity={0.04} pointerEvents="none" />
             <g pointerEvents="none">
               <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight} rx={5} ry={5} fill="#111" stroke="#333" strokeWidth={1} />
               <text x={tooltipX + 8} y={tooltipY + 16} fontSize={10} fill="#aaa">

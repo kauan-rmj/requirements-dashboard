@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { MONTH_COSTS } from '@/lib/costs';
 import MonthlyLineChart from '@/components/MonthlyLineChart';
-import DualAxisLineChart from '@/components/DualAxisLineChart';
+import DualAxisBarChart from '@/components/DualAxisBarChart';
 
 const RANGE_OPTIONS: { label: string; value: number | null }[] = [
   { label: '3M', value: 3 },
@@ -92,7 +92,7 @@ export default function CostsPage() {
           <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
             Custo: soma de cost_control.cost, USD (eixo esquerdo). Conversas válidas, sem teste/dev e deletadas (eixo direito).
           </p>
-          <DualAxisLineChart
+          <DualAxisBarChart
             left={{
               name: 'Custo total (USD)',
               color: '#22c55e',
