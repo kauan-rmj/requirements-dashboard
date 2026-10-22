@@ -17,6 +17,7 @@ export interface V3Test {
   assigneeId: string | null;
   validatorId: string | null;
   priority: V3Priority;
+  linearId: string | null;
   test: string;
   status: V3Status;
 }
