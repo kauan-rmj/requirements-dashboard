@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MONTH_COSTS } from '@/lib/costs';
 import MonthlyLineChart from '@/components/MonthlyLineChart';
+import DualAxisLineChart from '@/components/DualAxisLineChart';
 
 const RANGE_OPTIONS: { label: string; value: number | null }[] = [
   { label: '3M', value: 3 },
@@ -86,6 +87,28 @@ export default function CostsPage() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: '10px', padding: '24px' }}>
+          <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo total e conversas por mês</h2>
+          <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
+            Custo: soma de cost_control.cost, USD (eixo esquerdo). Conversas válidas, sem teste/dev e deletadas (eixo direito).
+          </p>
+          <DualAxisLineChart
+            left={{
+              name: 'Custo total (USD)',
+              color: '#22c55e',
+              points: rows.map((m) => ({ label: m.label, value: m.cost, partial: m.partial })),
+              axisFormat: (v) => usd(v, 0),
+              valueFormat: (v) => usd(v, 0),
+            }}
+            right={{
+              name: 'Conversas',
+              color: '#4f8ef7',
+              points: rows.map((m) => ({ label: m.label, value: m.conv, partial: m.partial })),
+              axisFormat: (v) => (v >= 1000 ? `${Math.round(v / 1000)}K` : String(Math.round(v))),
+              valueFormat: (v) => Math.round(v).toLocaleString('en-US'),
+            }}
+          />
+        </div>
         {CHARTS.map((c) => (
           <div
             key={c.title}
