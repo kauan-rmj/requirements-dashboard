@@ -1,11 +1,11 @@
 import { neon } from '@neondatabase/serverless';
 
 export const V3_STATUSES = [
-  { value: 'validado_nao_qa', label: 'Validado por não QA', color: '#4f8ef7' },
-  { value: 'validado_qa', label: 'Validado por QA', color: '#22c55e' },
+  { value: 'especificacao_pendente', label: 'Especificação pendente', color: '#a78bfa' },
   { value: 'correcao_pendente', label: 'Correção pendente', color: '#f87171' },
   { value: 'validacao_pendente', label: 'Validação pendente', color: '#f59e0b' },
-  { value: 'especificacao_pendente', label: 'Especificação pendente', color: '#a78bfa' },
+  { value: 'validado_nao_qa', label: 'Validado por não QA', color: '#4f8ef7' },
+  { value: 'validado_qa', label: 'Validado por QA', color: '#22c55e' },
 ] as const;
 
 export type V3Status = (typeof V3_STATUSES)[number]['value'];
