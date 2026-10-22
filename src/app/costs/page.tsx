@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { MONTH_COSTS } from '@/lib/costs';
-import MonthlyLineChart from '@/components/MonthlyLineChart';
-import DualAxisBarChart from '@/components/DualAxisBarChart';
+import MonthlyChart, { type ChartMode } from '@/components/MonthlyChart';
+import DualAxisChart from '@/components/DualAxisChart';
+import ChartModeToggle from '@/components/ChartModeToggle';
 
 const RANGE_OPTIONS: { label: string; value: number | null }[] = [
   { label: '3M', value: 3 },
@@ -14,8 +15,11 @@ const RANGE_OPTIONS: { label: string; value: number | null }[] = [
 const usd = (v: number, d: number) =>
   v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: d, maximumFractionDigits: d });
 
-const CHARTS = [
+type ChartKey = 'total' | 'perRequest' | 'perConversation' | 'responseTime';
+
+const CHARTS: { key: Exclude<ChartKey, 'total'>; title: string; sub: string; color: string; tooltipLabel: string; axisFormat: (v: number) => string; valueFormat: (v: number) => string; accessor: (m: (typeof MONTH_COSTS)[number]) => number }[] = [
   {
+    key: 'perRequest',
     title: 'Custo por requisição',
     sub: 'Custo total do mês ÷ requisições em request_control',
     color: '#22c55e',
@@ -25,15 +29,17 @@ const CHARTS = [
     accessor: (m: (typeof MONTH_COSTS)[number]) => m.cost / m.requests,
   },
   {
+    key: 'perConversation',
     title: 'Custo por conversa',
     sub: 'Custo total do mês ÷ conversas válidas (sem teste/dev e deletadas)',
     color: '#4f8ef7',
     tooltipLabel: 'Custo / conv.',
-    axisFormat: (v: number) => usd(v, 2),
+    axisFormat: (v: number) => usd(v, 3),
     valueFormat: (v: number) => usd(v, 3),
     accessor: (m: (typeof MONTH_COSTS)[number]) => m.cost / m.conv,
   },
   {
+    key: 'responseTime',
     title: 'Tempo de resposta médio',
     sub: 'Média de request_control.completion_time por mês, em segundos',
     color: '#f59e0b',
@@ -46,6 +52,13 @@ const CHARTS = [
 
 export default function CostsPage() {
   const [months, setMonths] = useState<number | null>(null);
+  const [modes, setModes] = useState<Record<ChartKey, ChartMode>>({
+    total: 'bar',
+    perRequest: 'line',
+    perConversation: 'line',
+    responseTime: 'line',
+  });
+  const setMode = (k: ChartKey, m: ChartMode) => setModes((prev) => ({ ...prev, [k]: m }));
   const rows = months === null ? MONTH_COSTS : MONTH_COSTS.slice(-months);
 
   return (
@@ -88,11 +101,17 @@ export default function CostsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: '10px', padding: '24px' }}>
-          <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo total e conversas por mês</h2>
-          <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
-            Custo: soma de cost_control.cost, USD (eixo esquerdo). Conversas válidas, sem teste/dev e deletadas (eixo direito).
-          </p>
-          <DualAxisBarChart
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo total e conversas por mês</h2>
+              <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
+                Custo: soma de cost_control.cost, USD (eixo esquerdo). Conversas válidas, sem teste/dev e deletadas (eixo direito).
+              </p>
+            </div>
+            <ChartModeToggle mode={modes.total} onChange={(m) => setMode('total', m)} />
+          </div>
+          <DualAxisChart
+            mode={modes.total}
             left={{
               name: 'Custo total (USD)',
               color: '#22c55e',
@@ -114,9 +133,15 @@ export default function CostsPage() {
             key={c.title}
             style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: '10px', padding: '24px' }}
           >
-            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>{c.title}</h2>
-            <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>{c.sub}</p>
-            <MonthlyLineChart
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>{c.title}</h2>
+                <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>{c.sub}</p>
+              </div>
+              <ChartModeToggle mode={modes[c.key]} onChange={(m) => setMode(c.key, m)} />
+            </div>
+            <MonthlyChart
+              mode={modes[c.key]}
               points={rows.map((m) => ({ label: m.label, value: c.accessor(m), partial: m.partial }))}
               color={c.color}
               tooltipLabel={c.tooltipLabel}

@@ -2,13 +2,16 @@
 
 import { useState, useCallback } from 'react';
 
+export type ChartMode = 'line' | 'bar';
+
 export interface MonthlyPoint {
   label: string;
   value: number;
   partial: boolean;
 }
 
-interface MonthlyLineChartProps {
+interface MonthlyChartProps {
+  mode: ChartMode;
   points: MonthlyPoint[];
   color: string;
   tooltipLabel: string;
@@ -30,23 +33,27 @@ function niceMax(n: number): number {
   return nice * exp;
 }
 
-export default function MonthlyLineChart({
+export default function MonthlyChart({
+  mode,
   points,
   color,
   tooltipLabel,
   axisFormat,
   valueFormat,
-}: MonthlyLineChartProps) {
+}: MonthlyChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGRectElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
       const svgX = ((e.clientX - rect.left) / rect.width) * CHART_W;
-      const index = Math.round((svgX / CHART_W) * (points.length - 1));
+      const index =
+        mode === 'bar'
+          ? Math.floor((svgX / CHART_W) * points.length)
+          : Math.round((svgX / CHART_W) * (points.length - 1));
       setHoverIndex(Math.max(0, Math.min(points.length - 1, index)));
     },
-    [points],
+    [points, mode],
   );
 
   if (points.length === 0) {
@@ -69,7 +76,11 @@ export default function MonthlyLineChart({
   const yMax = niceMax(Math.max(...points.map((p) => p.value)));
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * yMax);
 
-  const xAt = (i: number) => PAD.left + (i / Math.max(points.length - 1, 1)) * CHART_W;
+  const isBar = mode === 'bar';
+  const slot = CHART_W / points.length;
+  const barW = Math.min(40, slot * 0.55);
+  const xAt = (i: number) =>
+    isBar ? PAD.left + slot * (i + 0.5) : PAD.left + (i / Math.max(points.length - 1, 1)) * CHART_W;
   const yAt = (v: number) => PAD.top + CHART_H - (v / yMax) * CHART_H;
 
   // Last point may be partial: draw it dashed
@@ -92,7 +103,7 @@ export default function MonthlyLineChart({
   const tooltipY = PAD.top + 4;
 
   return (
-    <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} width="100%" height="auto" style={{ display: 'block' }}>
+    <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} width="100%" style={{ display: 'block' }}>
       {yTicks.map((tickVal) => {
         const y = yAt(tickVal);
         return (
@@ -114,6 +125,28 @@ export default function MonthlyLineChart({
         strokeWidth={1}
       />
 
+      {isBar &&
+        points.map((p, i) => {
+          const y = yAt(p.value);
+          return (
+            <rect
+              key={p.label}
+              x={xAt(i) - barW / 2}
+              y={y}
+              width={barW}
+              height={PAD.top + CHART_H - y}
+              rx={2}
+              fill={color}
+              fillOpacity={p.partial ? 0.35 : 0.9}
+              stroke={color}
+              strokeWidth={p.partial ? 1.5 : 0}
+              strokeDasharray={p.partial ? '4,3' : undefined}
+            />
+          );
+        })}
+
+      {!isBar && (
+        <>
       <polyline
         points={solidPts}
         fill="none"
@@ -144,6 +177,8 @@ export default function MonthlyLineChart({
           strokeWidth={p.partial ? 1.5 : 0}
         />
       ))}
+        </>
+      )}
 
       {points.map((p, i) => (
         <text key={p.label} x={xAt(i)} y={PAD.top + CHART_H + 18} fontSize={10} fill="#666" textAnchor="middle">
@@ -162,7 +197,11 @@ export default function MonthlyLineChart({
         style={{ cursor: 'crosshair' }}
       />
 
-      {hoverX !== null && (
+      {hoverX !== null && isBar && (
+        <rect x={PAD.left + slot * (hoverIndex ?? 0)} y={PAD.top} width={slot} height={CHART_H} fill="#ffffff" fillOpacity={0.04} pointerEvents="none" />
+      )}
+
+      {hoverX !== null && !isBar && (
         <line
           x1={hoverX}
           y1={PAD.top}
@@ -175,7 +214,7 @@ export default function MonthlyLineChart({
         />
       )}
 
-      {hoverPoint !== null && hoverIndex !== null && (
+      {hoverPoint !== null && hoverIndex !== null && !isBar && (
         <circle
           cx={xAt(hoverIndex)}
           cy={yAt(hoverPoint.value)}
