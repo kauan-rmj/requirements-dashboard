@@ -66,6 +66,24 @@ const ISSUES_QUERY = `
   }
 `;
 
+const V3_ISSUES_QUERY = `
+  query FetchV3Issues($projectId: String!, $after: String) {
+    project(id: $projectId) {
+      issues(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id identifier title priority description url createdAt completedAt canceledAt startedAt
+          parent { id }
+          assignee { id name avatarUrl }
+          state { id name color type position }
+          labels { nodes { id name } }
+          projectMilestone { id name sortOrder }
+        }
+      }
+    }
+  }
+`;
+
 interface RawState {
   id: string;
   name: string;
@@ -453,4 +471,54 @@ export async function fetchLinearData(apiKey: string): Promise<DashboardData> {
   const updatedAt = formatUpdatedAt();
   const timeline = computeTimeline(projects, 10);
   return { projects, updatedAt, timeline };
+}
+
+type RawMilestoneIssue = RawIssue & { projectMilestone?: { id: string; name: string; sortOrder: number } | null };
+
+interface V3IssuesResponse {
+  data?: {
+    project?: {
+      issues: {
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        nodes: RawMilestoneIssue[];
+      };
+    };
+  };
+}
+
+// Issues of one project grouped by project milestone (in milestone order), shaped like ProjectData so RequirementsList can render them.
+export async function fetchProjectMilestoneGroups(apiKey: string, projectId: string): Promise<ProjectData[]> {
+  const raw: RawMilestoneIssue[] = [];
+  let after: string | null = null;
+  for (;;) {
+    const res: V3IssuesResponse = await gql<V3IssuesResponse>(apiKey, V3_ISSUES_QUERY, { projectId, after });
+    const page = res.data?.project?.issues;
+    if (!page) break;
+    raw.push(...page.nodes);
+    if (!page.pageInfo.hasNextPage) break;
+    after = page.pageInfo.endCursor;
+  }
+
+  const EXCLUDED_STATE_NAMES = new Set(['canceled', 'cancelled', 'duplicate', 'impediment']);
+  const groups = new Map<string, { name: string; order: number; issues: LinearIssue[] }>();
+  for (const r of raw) {
+    const issue = parseIssue(r);
+    if (issue.state.type === 'cancelled' || EXCLUDED_STATE_NAMES.has(issue.state.name.toLowerCase())) continue;
+    const m = r.projectMilestone;
+    const key = m?.id ?? '__none';
+    const g = groups.get(key) ?? { name: m?.name ?? 'Sem milestone', order: m?.sortOrder ?? Infinity, issues: [] };
+    g.issues.push(issue);
+    groups.set(key, g);
+  }
+
+  return [...groups.entries()]
+    .sort(([, a], [, b]) => (a.order === b.order ? 0 : a.order < b.order ? -1 : 1))
+    .map(([id, g]) => {
+      const total = g.issues.length;
+      const completed = g.issues.filter(isEffectivelyCompleted).length;
+      return {
+        id, name: g.name, lead: null, rootIssues: buildTree(g.issues), allIssues: g.issues,
+        statusCounts: computeStatusCounts(g.issues), total, completed, pct: total ? Math.round((completed / total) * 100) : 0,
+      };
+    });
 }
