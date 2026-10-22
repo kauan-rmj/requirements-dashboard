@@ -19,12 +19,13 @@ interface V3SelectProps {
   bold?: boolean;
   background?: string;
   padding?: string;
+  bare?: boolean; // trigger is just the selected icon (no border/background/chevron); the menu opens on click
   iconOnly?: boolean; // trigger shows only the selected option's icon (label as hover title)
 }
 
 const RADIUS = '6px';
 
-export default function V3Select({ value, options, onChange, placeholder = 'Selecione…', color, bold, background = '#242424', padding = '6px 8px', iconOnly }: V3SelectProps) {
+export default function V3Select({ value, options, onChange, placeholder = 'Selecione…', color, bold, background = '#242424', padding = '6px 8px', iconOnly, bare }: V3SelectProps) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -60,9 +61,25 @@ export default function V3Select({ value, options, onChange, placeholder = 'Sele
     };
   }, [open]);
 
+  const trigger = bare ? (
+    <button
+      ref={btnRef}
+      type="button"
+      onClick={toggle}
+      aria-haspopup="listbox"
+      aria-expanded={open}
+      style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', display: 'flex', outline: 'none', borderRadius: '50%' }}
+    >
+      {selected?.icon ?? (
+        <span style={{ width: 20, height: 20, borderRadius: '50%', border: '1px dashed #555', display: 'block' }} />
+      )}
+    </button>
+  ) : null;
+
   return (
     <>
-      <button
+      {trigger}
+      {!bare && <button
         ref={btnRef}
         type="button"
         onClick={toggle}
@@ -84,13 +101,13 @@ export default function V3Select({ value, options, onChange, placeholder = 'Sele
           </span>
         )}
         <ChevronDown size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-      </button>
+      </button>}
       {open && rect && (
         <div
           ref={menuRef}
           role="listbox"
           style={{
-            position: 'fixed', left: rect.left, top: rect.top, width: iconOnly ? undefined : rect.width, minWidth: iconOnly ? 220 : undefined, zIndex: 300,
+            position: 'fixed', left: rect.left, top: rect.top, width: iconOnly || bare ? undefined : rect.width, minWidth: iconOnly || bare ? 220 : undefined, zIndex: 300,
             background: '#242424', border: `1px solid ${border}`, borderRadius: RADIUS, padding: '4px',
             maxHeight: '260px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           }}

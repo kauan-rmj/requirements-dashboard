@@ -24,7 +24,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         validator_id = CASE WHEN ${'validatorId' in b}::boolean THEN ${b.validatorId || null} ELSE validator_id END,
         updated_at = now()
       WHERE id = ${id}
-      RETURNING id::int AS id, milestone, feature, test, status, assignee_id AS "assigneeId", validator_id AS "validatorId", priority`;
+      RETURNING id::int AS id, milestone, feature, test, status, assignee_id AS "assigneeId", validator_id AS "validatorId", priority, linear_id AS "linearId"`;
     if (!rows.length) return NextResponse.json({ error: 'not found' }, { status: 404 });
     return NextResponse.json({ test: rows[0] });
   } catch (e) {
