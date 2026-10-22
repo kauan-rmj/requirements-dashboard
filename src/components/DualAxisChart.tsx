@@ -9,6 +9,7 @@ interface Series {
   points: MonthlyPoint[];
   axisFormat: (v: number) => string;
   valueFormat: (v: number) => string;
+  scaleOnly?: boolean; // contributes to its axis limit but is not drawn, listed or shown in the tooltip
 }
 
 interface DualAxisChartProps {
@@ -34,6 +35,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
 
   const all = [...left, right];
+  const drawn = all.filter((s) => !s.scaleOnly);
   const n = left[0]?.points.length ?? 0;
   const isBar = mode === 'bar';
 
@@ -56,7 +58,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
   }
 
   const slot = CHART_W / n;
-  const barW = Math.min(22, (slot * 0.8) / all.length - 1);
+  const barW = Math.min(22, (slot * 0.8) / drawn.length - 1);
   const xAt = (i: number) =>
     isBar ? PAD.left + slot * (i + 0.5) : PAD.left + (i / Math.max(n - 1, 1)) * CHART_W;
   const scaleFor = (group: Series[]) => {
@@ -104,7 +106,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
           points={solid.map((p, i) => `${xAt(i)},${yAt(p.value)}`).join(' ')}
           fill="none"
           stroke={s.color}
-          strokeWidth={s === right ? 5 : 2.5}
+          strokeWidth={2.5}
           strokeLinejoin="round"
           strokeLinecap="round"
         />
@@ -113,7 +115,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
             points={[n - 2, n - 1].map((i) => `${xAt(i)},${yAt(s.points[i].value)}`).join(' ')}
             fill="none"
             stroke={s.color}
-            strokeWidth={s === right ? 5 : 2.5}
+            strokeWidth={2.5}
             strokeDasharray="5,4"
             strokeLinecap="round"
           />
@@ -135,7 +137,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
 
   const hoverX = hoverIndex !== null ? xAt(hoverIndex) : null;
   const tooltipWidth = 200;
-  const tooltipHeight = 24 + all.length * 16 + 8;
+  const tooltipHeight = 24 + drawn.length * 16 + 8;
   let tooltipX = hoverX !== null ? hoverX + 8 : 0;
   if (tooltipX + tooltipWidth > VIEW_W - PAD.right) tooltipX = (hoverX ?? 0) - tooltipWidth - 8;
   const tooltipY = PAD.top + 4;
@@ -159,9 +161,8 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
         })}
 
         {isBar
-          ? all.map((s, j) => renderBars(s, s === right ? R.yAt : L.yAt, (j - all.length / 2) * (barW + 1)))
-          : /* right series first and thicker, so a left series that overlaps it stays visible */
-            [right, ...left].map((s) => renderLine(s, s === right ? R.yAt : L.yAt))}
+          ? drawn.map((s, j) => renderBars(s, s === right ? R.yAt : L.yAt, (j - drawn.length / 2) * (barW + 1)))
+          : drawn.map((s) => renderLine(s, s === right ? R.yAt : L.yAt))}
 
         {left[0].points.map((p, i) => (
           <text key={p.label} x={xAt(i)} y={PAD.top + CHART_H + 18} fontSize={10} fill="#666" textAnchor="middle">
@@ -187,7 +188,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
             ) : (
               <>
                 <line x1={hoverX} y1={PAD.top} x2={hoverX} y2={PAD.top + CHART_H} stroke="#555" strokeWidth={1} strokeDasharray="4,3" pointerEvents="none" />
-                {all.map((s) => ({ s, sc: s === right ? R : L })).map(({ s, sc }) =>
+                {drawn.map((s) => ({ s, sc: s === right ? R : L })).map(({ s, sc }) =>
                   hidden[s.name] ? null : (
                     <circle key={s.name} cx={hoverX} cy={sc.yAt(s.points[hoverIndex].value)} r={4} fill={s.color} stroke="#111" strokeWidth={1.5} pointerEvents="none" />
                   ),
@@ -200,7 +201,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
                 {left[0].points[hoverIndex].label}
                 {left[0].points[hoverIndex].partial ? ' (parcial)' : ''}
               </text>
-              {all.map((s, j) => (
+              {drawn.map((s, j) => (
                 <text key={s.name} x={tooltipX + 8} y={tooltipY + 33 + j * 16} fontSize={10} fill={s.color}>
                   {s.name}: <tspan fill="#e5e5e5">{s.valueFormat(s.points[hoverIndex].value)}</tspan>
                 </text>
@@ -211,7 +212,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
       </svg>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px', paddingLeft: `${PAD.left}px` }}>
-        {all.map((s) => {
+        {drawn.map((s) => {
           const off = hidden[s.name];
           return (
             <button

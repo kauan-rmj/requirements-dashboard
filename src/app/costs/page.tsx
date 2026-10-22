@@ -105,7 +105,7 @@ export default function CostsPage() {
             <div>
               <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo, cobrança e conversas por mês</h2>
               <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
-                Custo (soma de cost_control.cost) e cobrança estimada (conversas × $0,20 em média), USD, no eixo esquerdo. Conversas válidas, sem teste/dev e deletadas, no eixo direito.
+                Custo (soma de cost_control.cost) no eixo esquerdo, USD. Conversas válidas (sem teste/dev e deletadas) no eixo direito; a cobrança estimada (conversas × $0,20 em média) usa a mesma série e o eixo esquerdo.
               </p>
             </div>
             <ChartModeToggle mode={modes.total} onChange={(m) => setMode('total', m)} />
@@ -122,18 +122,19 @@ export default function CostsPage() {
               },
               {
                 name: 'Cobrança estimada (USD)',
-                color: '#f59e0b',
+                color: '#4f8ef7',
+                scaleOnly: true, // same shape as conversations; drawn as the 'Conversas/Cobrança' series
                 points: rows.map((m) => ({ label: m.label, value: m.conv * BILLING_PER_CONVERSATION, partial: m.partial })),
                 axisFormat: (v) => usd(v, 0),
                 valueFormat: (v) => usd(v, 0),
               },
             ]}
             right={{
-              name: 'Conversas',
+              name: 'Conversas/Cobrança',
               color: '#4f8ef7',
               points: rows.map((m) => ({ label: m.label, value: m.conv, partial: m.partial })),
               axisFormat: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(Math.round(v))),
-              valueFormat: (v) => Math.round(v).toLocaleString('en-US'),
+              valueFormat: (v) => `${Math.round(v).toLocaleString('en-US')} / ${usd(v * BILLING_PER_CONVERSATION, 0)}`,
             }}
           />
         </div>
