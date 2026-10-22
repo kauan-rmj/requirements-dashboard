@@ -71,7 +71,7 @@ export default function V3Select({ value, options, onChange, placeholder = 'Sele
       style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', display: 'flex', outline: 'none', borderRadius: '50%' }}
     >
       {selected?.icon ?? (
-        <span style={{ width: 20, height: 20, borderRadius: '50%', border: '1px dashed #555', display: 'block' }} />
+        <span style={{ width: 28, height: 28, borderRadius: '50%', border: '1px dashed #555', display: 'block' }} />
       )}
     </button>
   ) : null;

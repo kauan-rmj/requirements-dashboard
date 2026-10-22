@@ -60,7 +60,7 @@ export default function V3MultiSelect({ values, options, onChange, emptyLabel = 
   const icons = selected.length ? (
     <span style={{ display: 'flex', alignItems: 'center' }}>
       {selected.map((o, i) => (
-        <span key={o.value} title={o.label} style={{ display: 'flex', marginLeft: i ? -6 : 0, borderRadius: '50%', boxShadow: '0 0 0 2px #1a1a1a' }}>{o.icon}</span>
+        <span key={o.value} title={o.label} style={{ display: 'flex', marginLeft: i ? -8 : 0, borderRadius: '50%', boxShadow: '0 0 0 2px #1a1a1a' }}>{o.icon}</span>
       ))}
     </span>
   ) : null;
@@ -78,7 +78,7 @@ export default function V3MultiSelect({ values, options, onChange, emptyLabel = 
           : { width: '100%', display: 'flex', alignItems: 'center', gap: '8px', background, border: '1px solid #3a3a3a', borderRadius: '6px', padding, color: selected.length ? '#e5e5e5' : '#666', fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', outline: 'none', minHeight: 20 }}
       >
         {icons ?? (bare
-          ? <span style={{ width: 20, height: 20, borderRadius: '50%', border: '1px dashed #555', display: 'block' }} />
+          ? <span style={{ width: 28, height: 28, borderRadius: '50%', border: '1px dashed #555', display: 'block' }} />
           : null)}
         {!bare && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected.length ? selected.map((o) => o.label).join(', ') : emptyLabel}</span>}
       </button>
