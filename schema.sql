@@ -33,3 +33,7 @@ ALTER TABLE v3_tests ADD CONSTRAINT v3_tests_status_check CHECK (status IN ('val
 
 -- Linear issue (DEV-XXXX) each test was derived from
 ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS linear_id TEXT;
+
+-- Multiple validators per test (replaces validator_id, which is kept only as legacy data)
+ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS validator_ids TEXT[] NOT NULL DEFAULT '{}';
+UPDATE v3_tests SET validator_ids = ARRAY[validator_id] WHERE validator_id IS NOT NULL AND validator_ids = '{}';

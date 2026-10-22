@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ExternalLink, Plus, Trash2, X } from 'lucide-react';
 import V3Select from '@/components/V3Select';
+import V3MultiSelect from '@/components/V3MultiSelect';
 import { ASSIGNEE_USER_IDS, V3_PRIORITIES, V3_STATUSES, type V3Priority, type V3Status } from '@/lib/v3-tests';
 import { EMPTY_DRAFT, useV3, type Draft } from '../V3Provider';
 
@@ -41,7 +42,7 @@ export default function V3TablePage() {
         (!q || t.feature.toLowerCase().includes(q) || t.test.toLowerCase().includes(q)) &&
         match(t.milestone, filters.milestone) &&
         match(t.assigneeId, filters.assignee) &&
-        match(t.validatorId, filters.validator) &&
+        (!filters.validator || (filters.validator === NONE ? t.validatorIds.length === 0 : t.validatorIds.includes(filters.validator))) &&
         match(t.priority, filters.priority) &&
         match(t.status, filters.status),
     );
@@ -127,13 +128,13 @@ export default function V3TablePage() {
                     )}
                   </span>
                 </th>
-                <th style={{ ...th, width: '22%' }}>Funcionalidade</th>
-                <th style={{ ...th, width: '84px' }}>Responsável</th>
-                <th style={{ ...th, width: '84px' }}>Validador</th>
                 <th style={{ ...th, width: '140px' }}>Prioridade</th>
+                <th style={{ ...th, width: '22%' }}>Funcionalidade</th>
+                <th style={{ ...th, width: '88px' }}>Responsável</th>
+                <th style={{ ...th, width: '110px' }}>Validadores</th>
                 <th style={{ ...th, width: '200px' }}>Status</th>
                 <th style={th}>Teste</th>
-                <th style={{ ...th, width: '40px' }} />
+                <th style={{ ...th, width: '76px' }} />
               </tr>
             </thead>
             <tbody>
@@ -151,32 +152,28 @@ export default function V3TablePage() {
                     />
                   </td>
                   <td style={{ padding: '4px', verticalAlign: 'top' }}>
+                    <V3Select value={t.priority} color={priorityColor(t.priority)} bold options={priorityOptions} onChange={(v) => save(t.id, { priority: v as V3Priority })} />
+                  </td>
+                  <td style={{ padding: '4px', verticalAlign: 'top' }}>
                     <textarea style={inputStyle} rows={2} value={t.feature} placeholder="Funcionalidade" onChange={(e) => save(t.id, { feature: e.target.value }, 500)} />
                   </td>
                   <td style={{ padding: '4px', verticalAlign: 'top' }}>
                     <div title={users.find((u) => u.id === t.assigneeId)?.name}>
                       <V3Select
                         value={t.assigneeId ?? ''}
-                        iconOnly
-                        placeholder="—"
+                        bare
                         options={userOptions('Sem responsável', ASSIGNEE_USER_IDS, t.assigneeId)}
                         onChange={(v) => save(t.id, { assigneeId: v || null })}
                       />
                     </div>
                   </td>
                   <td style={{ padding: '4px', verticalAlign: 'top' }}>
-                    <div title={users.find((u) => u.id === t.validatorId)?.name}>
-                      <V3Select
-                        value={t.validatorId ?? ''}
-                        iconOnly
-                        placeholder="—"
-                        options={userOptions('Sem validador')}
-                        onChange={(v) => save(t.id, { validatorId: v || null })}
-                      />
-                    </div>
-                  </td>
-                  <td style={{ padding: '4px', verticalAlign: 'top' }}>
-                    <V3Select value={t.priority} color={priorityColor(t.priority)} bold options={priorityOptions} onChange={(v) => save(t.id, { priority: v as V3Priority })} />
+                    <V3MultiSelect
+                      bare
+                      values={t.validatorIds}
+                      options={userOptions('').slice(1)}
+                      onChange={(v) => save(t.id, { validatorIds: v })}
+                    />
                   </td>
                   <td style={{ padding: '4px', verticalAlign: 'top' }}>
                     <V3Select value={t.status} color={statusColor(t.status)} bold options={statusOptions} onChange={(v) => save(t.id, { status: v as V3Status })} />
@@ -185,9 +182,16 @@ export default function V3TablePage() {
                     <textarea style={inputStyle} rows={2} value={t.test} placeholder="O que deve ser testado" onChange={(e) => save(t.id, { test: e.target.value }, 500)} />
                   </td>
                   <td style={{ padding: '4px', verticalAlign: 'top' }}>
-                    <button onClick={() => onRemove(t.id)} title="Excluir" style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', padding: '8px' }}>
-                      <Trash2 size={14} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {t.linearId && (
+                        <a href={`https://linear.app/tolky/issue/${t.linearId}`} target="_blank" rel="noopener noreferrer" title={`Abrir ${t.linearId} no Linear`} style={{ color: '#4f8ef7', padding: '8px', display: 'flex' }}>
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                      <button onClick={() => onRemove(t.id)} title="Excluir" style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', padding: '8px' }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -220,6 +224,10 @@ export default function V3TablePage() {
               <V3Select value={draft.milestone} background="#111" padding="8px 10px" options={milestones.map((m) => ({ value: m.name, label: m.name }))} onChange={(v) => setDraft({ ...draft, milestone: v })} />
             </div>
             <div>
+              <label style={labelStyle}>Prioridade</label>
+              <V3Select value={draft.priority} background="#111" padding="8px 10px" options={priorityOptions} onChange={(v) => setDraft({ ...draft, priority: v as V3Priority })} />
+            </div>
+            <div>
               <label style={labelStyle}>Funcionalidade</label>
               <input required autoFocus style={fieldStyle} value={draft.feature} placeholder="Ex.: Botão Ligar do operador" onChange={(e) => setDraft({ ...draft, feature: e.target.value })} />
             </div>
@@ -229,11 +237,7 @@ export default function V3TablePage() {
             </div>
             <div>
               <label style={labelStyle}>Validador</label>
-              <V3Select value={draft.validatorId} background="#111" padding="8px 10px" placeholder="Sem validador" options={userOptions('Sem validador')} onChange={(v) => setDraft({ ...draft, validatorId: v })} />
-            </div>
-            <div>
-              <label style={labelStyle}>Prioridade</label>
-              <V3Select value={draft.priority} background="#111" padding="8px 10px" options={priorityOptions} onChange={(v) => setDraft({ ...draft, priority: v as V3Priority })} />
+              <V3MultiSelect values={draft.validatorIds} background="#111" padding="8px 10px" emptyLabel="Sem validador" options={userOptions('').slice(1)} onChange={(v) => setDraft({ ...draft, validatorIds: v })} />
             </div>
             <div>
               <label style={labelStyle}>Status</label>

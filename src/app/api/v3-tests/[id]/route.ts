@@ -21,10 +21,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
         status = COALESCE(${b.status ?? null}, status),
         assignee_id = CASE WHEN ${'assigneeId' in b}::boolean THEN ${b.assigneeId || null} ELSE assignee_id END,
         priority = COALESCE(${b.priority ?? null}, priority),
-        validator_id = CASE WHEN ${'validatorId' in b}::boolean THEN ${b.validatorId || null} ELSE validator_id END,
+        validator_ids = CASE WHEN ${'validatorIds' in b}::boolean THEN ${Array.isArray(b.validatorIds) ? b.validatorIds.filter((x: unknown) => typeof x === 'string' && x) : []}::text[] ELSE validator_ids END,
         updated_at = now()
       WHERE id = ${id}
-      RETURNING id::int AS id, milestone, feature, test, status, assignee_id AS "assigneeId", validator_id AS "validatorId", priority`;
+      RETURNING id::int AS id, milestone, feature, test, status, assignee_id AS "assigneeId", validator_ids AS "validatorIds", priority, linear_id AS "linearId"`;
     if (!rows.length) return NextResponse.json({ error: 'not found' }, { status: 404 });
     return NextResponse.json({ test: rows[0] });
   } catch (e) {

@@ -8,6 +8,7 @@ import { useV3 } from './V3Provider';
 const TABS = [
   { href: '/v3', label: 'Dashboard' },
   { href: '/v3/tabela', label: 'Tabela' },
+  { href: '/v3/issues', label: 'Issues' },
 ];
 
 export default function V3Shell({ children }: { children: ReactNode }) {
