@@ -30,3 +30,6 @@ ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS validator_id TEXT;
 ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'sem_prioridade';
 ALTER TABLE v3_tests DROP CONSTRAINT IF EXISTS v3_tests_status_check;
 ALTER TABLE v3_tests ADD CONSTRAINT v3_tests_status_check CHECK (status IN ('validado_nao_qa','validado_qa','correcao_pendente','validacao_pendente','especificacao_pendente'));
+
+-- Linear issue (DEV-XXXX) each test was derived from
+ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS linear_id TEXT;
