@@ -17,3 +17,12 @@ CREATE TABLE IF NOT EXISTS v3_milestones (
   url TEXT NOT NULL,
   sort_order DOUBLE PRECISION NOT NULL DEFAULT 0
 );
+
+-- Snapshot of Linear users (refreshed from Linear when LINEAR_API_KEY is set)
+CREATE TABLE IF NOT EXISTS v3_users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  avatar_url TEXT
+);
+ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS assignee_id TEXT;
+ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS validator_id TEXT;
