@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ExternalLink, Plus, Trash2, X } from 'lucide-react';
 import V3Select from '@/components/V3Select';
+import V3MultiSelect from '@/components/V3MultiSelect';
 import { ASSIGNEE_USER_IDS, V3_PRIORITIES, V3_STATUSES, type V3Priority, type V3Status } from '@/lib/v3-tests';
 import { EMPTY_DRAFT, useV3, type Draft } from '../V3Provider';
 
@@ -41,7 +42,7 @@ export default function V3TablePage() {
         (!q || t.feature.toLowerCase().includes(q) || t.test.toLowerCase().includes(q)) &&
         match(t.milestone, filters.milestone) &&
         match(t.assigneeId, filters.assignee) &&
-        match(t.validatorId, filters.validator) &&
+        (!filters.validator || (filters.validator === NONE ? t.validatorIds.length === 0 : t.validatorIds.includes(filters.validator))) &&
         match(t.priority, filters.priority) &&
         match(t.status, filters.status),
     );
@@ -130,7 +131,7 @@ export default function V3TablePage() {
                 <th style={{ ...th, width: '140px' }}>Prioridade</th>
                 <th style={{ ...th, width: '22%' }}>Funcionalidade</th>
                 <th style={{ ...th, width: '88px' }}>Responsável</th>
-                <th style={{ ...th, width: '72px' }}>Validador</th>
+                <th style={{ ...th, width: '110px' }}>Validadores</th>
                 <th style={{ ...th, width: '200px' }}>Status</th>
                 <th style={th}>Teste</th>
                 <th style={{ ...th, width: '76px' }} />
@@ -167,14 +168,12 @@ export default function V3TablePage() {
                     </div>
                   </td>
                   <td style={{ padding: '4px', verticalAlign: 'top' }}>
-                    <div title={users.find((u) => u.id === t.validatorId)?.name}>
-                      <V3Select
-                        value={t.validatorId ?? ''}
-                        bare
-                        options={userOptions('Sem validador')}
-                        onChange={(v) => save(t.id, { validatorId: v || null })}
-                      />
-                    </div>
+                    <V3MultiSelect
+                      bare
+                      values={t.validatorIds}
+                      options={userOptions('').slice(1)}
+                      onChange={(v) => save(t.id, { validatorIds: v })}
+                    />
                   </td>
                   <td style={{ padding: '4px', verticalAlign: 'top' }}>
                     <V3Select value={t.status} color={statusColor(t.status)} bold options={statusOptions} onChange={(v) => save(t.id, { status: v as V3Status })} />
@@ -238,7 +237,7 @@ export default function V3TablePage() {
             </div>
             <div>
               <label style={labelStyle}>Validador</label>
-              <V3Select value={draft.validatorId} background="#111" padding="8px 10px" placeholder="Sem validador" options={userOptions('Sem validador')} onChange={(v) => setDraft({ ...draft, validatorId: v })} />
+              <V3MultiSelect values={draft.validatorIds} background="#111" padding="8px 10px" emptyLabel="Sem validador" options={userOptions('').slice(1)} onChange={(v) => setDraft({ ...draft, validatorIds: v })} />
             </div>
             <div>
               <label style={labelStyle}>Status</label>
