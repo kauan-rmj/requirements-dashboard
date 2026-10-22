@@ -103,9 +103,10 @@ export default function V3Page() {
     }
   };
 
-  const userOptions = (emptyLabel: string, only?: string[]) => [
+  // `current` stays selectable even when outside `only` (e.g. an assignee set in Linear).
+  const userOptions = (emptyLabel: string, only?: string[], current?: string | null) => [
     { value: '', label: emptyLabel },
-    ...users.filter((u) => !only || only.includes(u.id)).map((u) => ({ value: u.id, label: u.name, icon: <V3Avatar name={u.name} avatarUrl={u.avatarUrl} size={20} tooltip={false} /> })),
+    ...users.filter((u) => !only || only.includes(u.id) || u.id === current).map((u) => ({ value: u.id, label: u.name, icon: <V3Avatar name={u.name} avatarUrl={u.avatarUrl} size={20} tooltip={false} /> })),
   ];
 
   const projectUrl = milestones[0]?.url;
@@ -195,7 +196,7 @@ export default function V3Page() {
                             value={t.assigneeId ?? ''}
                             iconOnly
                             placeholder="—"
-                            options={userOptions('Sem responsável', ASSIGNEE_USER_IDS)}
+                            options={userOptions('Sem responsável', ASSIGNEE_USER_IDS, t.assigneeId)}
                             onChange={(v) => save(t.id, { assigneeId: v || null })}
                           />
                         </div>
