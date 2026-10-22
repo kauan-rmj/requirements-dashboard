@@ -30,3 +30,7 @@ ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS validator_id TEXT;
 ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'sem_prioridade';
 ALTER TABLE v3_tests DROP CONSTRAINT IF EXISTS v3_tests_status_check;
 ALTER TABLE v3_tests ADD CONSTRAINT v3_tests_status_check CHECK (status IN ('validado_nao_qa','validado_qa','correcao_pendente','validacao_pendente','especificacao_pendente'));
+
+-- Multiple validators per test (replaces validator_id, which is kept only as legacy data)
+ALTER TABLE v3_tests ADD COLUMN IF NOT EXISTS validator_ids TEXT[] NOT NULL DEFAULT '{}';
+UPDATE v3_tests SET validator_ids = ARRAY[validator_id] WHERE validator_id IS NOT NULL AND validator_ids = '{}';

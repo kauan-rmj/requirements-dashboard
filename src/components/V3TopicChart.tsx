@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { V3_STATUSES, type V3Status, type V3Test } from '@/lib/v3-tests';
+import V3Avatar from './V3Avatar';
+import { MILESTONE_OWNERS, V3_STATUSES, type V3Status, type V3Test, type V3User } from '@/lib/v3-tests';
 
 const VALIDATED: V3Status[] = ['validado_nao_qa', 'validado_qa'];
 
@@ -20,7 +21,7 @@ interface Hover {
   color?: string;
 }
 
-export default function V3TopicChart({ tests }: { tests: V3Test[] }) {
+export default function V3TopicChart({ tests, users }: { tests: V3Test[]; users: V3User[] }) {
   const [hovered, setHovered] = useState<Hover | null>(null);
   const [hoveredPct, setHoveredPct] = useState<string | null>(null);
 
@@ -77,7 +78,11 @@ export default function V3TopicChart({ tests }: { tests: V3Test[] }) {
         {topics.map((topic, idx) => (
           <div key={topic.name}>
             <div style={{ display: 'flex', alignItems: 'center', padding: '12px 24px', gap: '16px' }}>
-              <div style={{ width: '200px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ width: '200px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                {(() => {
+                  const owner = users.find((u) => u.id === MILESTONE_OWNERS[topic.name]);
+                  return owner && <V3Avatar name={owner.name} avatarUrl={owner.avatarUrl} size={20} />;
+                })()}
                 <span
                   title={topic.name}
                   style={{ fontSize: '13px', fontWeight: 500, color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}

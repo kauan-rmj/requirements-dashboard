@@ -8,14 +8,14 @@ export type Draft = {
   milestone: string;
   feature: string;
   assigneeId: string;
-  validatorId: string;
+  validatorIds: string[];
   priority: V3Priority;
   status: V3Status;
   test: string;
 };
 
 export const EMPTY_DRAFT: Draft = {
-  milestone: '', feature: '', assigneeId: '', validatorId: '', priority: 'sem_prioridade', status: 'validacao_pendente', test: '',
+  milestone: '', feature: '', assigneeId: '', validatorIds: [], priority: 'sem_prioridade', status: 'validacao_pendente', test: '',
 };
 
 interface V3Context {
