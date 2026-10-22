@@ -23,12 +23,10 @@ const VIEW_H = 320;
 const CHART_W = VIEW_W - PAD.left - PAD.right;
 const CHART_H = VIEW_H - PAD.top - PAD.bottom;
 
-function niceMax(n: number): number {
-  if (n <= 0) return 1;
-  const exp = Math.pow(10, Math.floor(Math.log10(n)));
-  const f = n / exp;
-  const nice = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
-  return nice * exp;
+// Axis limit: 10% above the largest value, rounded up to the next ten (e.g. 358 -> 393.8 -> 400).
+function axisLimit(n: number): number {
+  if (n <= 0) return 10;
+  return Math.ceil(Math.round(n * 1.1 * 1e6) / 1e6 / 10) * 10;
 }
 
 export default function DualAxisChart({ mode, left, right }: DualAxisChartProps) {
@@ -62,7 +60,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
   const xAt = (i: number) =>
     isBar ? PAD.left + slot * (i + 0.5) : PAD.left + (i / Math.max(n - 1, 1)) * CHART_W;
   const scaleFor = (group: Series[]) => {
-    const yMax = niceMax(Math.max(...group.flatMap((s) => s.points.map((p) => p.value))));
+    const yMax = axisLimit(Math.max(...group.flatMap((s) => s.points.map((p) => p.value))));
     return { yMax, yAt: (v: number) => PAD.top + CHART_H - (v / yMax) * CHART_H };
   };
   const L = scaleFor(left);

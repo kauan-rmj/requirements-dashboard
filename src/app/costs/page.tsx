@@ -132,7 +132,7 @@ export default function CostsPage() {
               name: 'Conversas',
               color: '#4f8ef7',
               points: rows.map((m) => ({ label: m.label, value: m.conv, partial: m.partial })),
-              axisFormat: (v) => (v >= 1000 ? `${Math.round(v / 1000)}K` : String(Math.round(v))),
+              axisFormat: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(Math.round(v))),
               valueFormat: (v) => Math.round(v).toLocaleString('en-US'),
             }}
           />
