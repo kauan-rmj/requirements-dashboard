@@ -13,6 +13,7 @@ export interface V3Test {
   id: number;
   milestone: string;
   feature: string;
+  assigneeId: string | null;
   test: string;
   status: V3Status;
 }
@@ -29,4 +30,10 @@ export interface V3Milestone {
   id: string;
   name: string;
   url: string;
+}
+
+export interface V3User {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
 }

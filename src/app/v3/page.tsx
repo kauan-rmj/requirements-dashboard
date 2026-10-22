@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ExternalLink, Plus, Trash2, X } from 'lucide-react';
 import V3TopicChart from '@/components/V3TopicChart';
 import V3Select from '@/components/V3Select';
-import { V3_STATUSES, type V3Milestone, type V3Status, type V3Test } from '@/lib/v3-tests';
+import V3Avatar from '@/components/V3Avatar';
+import { V3_STATUSES, type V3Milestone, type V3Status, type V3Test, type V3User } from '@/lib/v3-tests';
 
 const card = { background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: '10px', padding: '24px' } as const;
 const inputStyle = {
@@ -13,8 +14,8 @@ const inputStyle = {
 };
 const th = { textAlign: 'left' as const, fontSize: '11px', fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.05em', padding: '8px', borderBottom: '1px solid #2a2a2a' };
 
-type Draft = { milestone: string; feature: string; test: string; status: V3Status };
-const EMPTY_DRAFT: Draft = { milestone: '', feature: '', test: '', status: 'validacao_pendente' };
+type Draft = { milestone: string; feature: string; test: string; status: V3Status; assigneeId: string };
+const EMPTY_DRAFT: Draft = { milestone: '', feature: '', test: '', status: 'validacao_pendente', assigneeId: '' };
 const labelStyle = { display: 'block', fontSize: '12px', color: '#888', marginBottom: '6px' } as const;
 const fieldStyle = { ...inputStyle, background: '#111', border: '1px solid #3a3a3a', padding: '8px 10px' };
 
@@ -23,6 +24,7 @@ export default function V3Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [milestones, setMilestones] = useState<V3Milestone[]>([]);
+  const [users, setUsers] = useState<V3User[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [saving, setSaving] = useState(false);
@@ -49,6 +51,10 @@ export default function V3Page() {
       .then((r) => r.json())
       .then((j) => setMilestones(j.milestones ?? []))
       .catch(() => setError('Falha ao carregar milestones do Linear'));
+    fetch('/api/v3-users', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => setUsers(j.users ?? []))
+      .catch(() => setError('Falha ao carregar usuários do Linear'));
   }, [load]);
 
   const save = (id: number, patch: Partial<V3Test>, debounce = 0) => {
@@ -97,6 +103,11 @@ export default function V3Page() {
     }
   };
 
+  const userOptions = (size: number, tooltip: boolean) => [
+    { value: '', label: 'Sem responsável' },
+    ...users.map((u) => ({ value: u.id, label: u.name, icon: <V3Avatar name={u.name} avatarUrl={u.avatarUrl} size={size} tooltip={tooltip} /> })),
+  ];
+
   const projectUrl = milestones[0]?.url;
 
   const statusColor = (s: V3Status) => V3_STATUSES.find((x) => x.value === s)!.color;
@@ -129,7 +140,7 @@ export default function V3Page() {
             <div style={{ color: '#555', fontSize: '13px', padding: '24px 0' }}>Carregando…</div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
                 <thead>
                   <tr>
                     <th style={{ ...th, width: '20%' }}>
@@ -144,6 +155,7 @@ export default function V3Page() {
                     </th>
                     <th style={{ ...th, width: '18%' }}>Funcionalidade</th>
                     <th style={th}>Teste</th>
+                    <th style={{ ...th, width: '84px' }}>Responsável</th>
                     <th style={{ ...th, width: '190px' }}>Status</th>
                     <th style={{ ...th, width: '40px' }} />
                   </tr>
@@ -175,6 +187,17 @@ export default function V3Page() {
                           placeholder="O que deve ser testado"
                           onChange={(e) => save(t.id, { test: e.target.value }, 500)}
                         />
+                      </td>
+                      <td style={{ padding: '4px', verticalAlign: 'top' }}>
+                        <div title={users.find((u) => u.id === t.assigneeId)?.name}>
+                          <V3Select
+                            value={t.assigneeId ?? ''}
+                            iconOnly
+                            placeholder="—"
+                            options={userOptions(20, false)}
+                            onChange={(v) => save(t.id, { assigneeId: v || null })}
+                          />
+                        </div>
                       </td>
                       <td style={{ padding: '4px', verticalAlign: 'top' }}>
                         <V3Select
@@ -234,6 +257,17 @@ export default function V3Page() {
             <div>
               <label style={labelStyle}>Teste</label>
               <textarea required rows={4} style={fieldStyle} value={draft.test} placeholder="Descreva o que deve ser testado" onChange={(e) => setDraft({ ...draft, test: e.target.value })} />
+            </div>
+            <div>
+              <label style={labelStyle}>Responsável</label>
+              <V3Select
+                value={draft.assigneeId}
+                background="#111"
+                padding="8px 10px"
+                placeholder="Sem responsável"
+                options={userOptions(20, false)}
+                onChange={(v) => setDraft({ ...draft, assigneeId: v })}
+              />
             </div>
             <div>
               <label style={labelStyle}>Status</label>

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 export interface V3SelectOption {
   value: string;
   label: string;
   color?: string;
+  icon?: ReactNode;
 }
 
 interface V3SelectProps {
@@ -18,16 +19,17 @@ interface V3SelectProps {
   bold?: boolean;
   background?: string;
   padding?: string;
+  iconOnly?: boolean; // trigger shows only the selected option's icon (label as hover title)
 }
 
 const RADIUS = '6px';
 
-export default function V3Select({ value, options, onChange, placeholder = 'Selecione…', color, bold, background = '#242424', padding = '6px 8px' }: V3SelectProps) {
+export default function V3Select({ value, options, onChange, placeholder = 'Selecione…', color, bold, background = '#242424', padding = '6px 8px', iconOnly }: V3SelectProps) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const selected = options.find((o) => o.value === value);
+  const selected = value ? options.find((o) => o.value === value) : undefined;
   const border = color ?? '#3a3a3a';
 
   const toggle = () => {
@@ -73,7 +75,14 @@ export default function V3Select({ value, options, onChange, placeholder = 'Sele
           fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', outline: 'none',
         }}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected?.label ?? placeholder}</span>
+        {iconOnly && selected?.icon ? (
+          selected.icon
+        ) : (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+            {selected?.icon}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected?.label ?? placeholder}</span>
+          </span>
+        )}
         <ChevronDown size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
       </button>
       {open && rect && (
@@ -81,7 +90,7 @@ export default function V3Select({ value, options, onChange, placeholder = 'Sele
           ref={menuRef}
           role="listbox"
           style={{
-            position: 'fixed', left: rect.left, top: rect.top, width: rect.width, zIndex: 300,
+            position: 'fixed', left: rect.left, top: rect.top, width: iconOnly ? undefined : rect.width, minWidth: iconOnly ? 220 : undefined, zIndex: 300,
             background: '#242424', border: `1px solid ${border}`, borderRadius: RADIUS, padding: '4px',
             maxHeight: '260px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           }}
@@ -101,7 +110,10 @@ export default function V3Select({ value, options, onChange, placeholder = 'Sele
                   color: o.color ?? '#e5e5e5', fontWeight: active ? 600 : 400, background: active ? '#2a2a2a' : 'transparent',
                 }}
               >
-                {o.label}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {o.icon}
+                  {o.label}
+                </span>
               </div>
             );
           })}

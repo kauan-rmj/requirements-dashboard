@@ -16,9 +16,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
         feature = COALESCE(${b.feature ?? null}, feature),
         test = COALESCE(${b.test ?? null}, test),
         status = COALESCE(${b.status ?? null}, status),
+        assignee_id = CASE WHEN ${'assigneeId' in b}::boolean THEN ${b.assigneeId || null} ELSE assignee_id END,
         updated_at = now()
       WHERE id = ${id}
-      RETURNING id::int AS id, milestone, feature, test, status`;
+      RETURNING id::int AS id, milestone, feature, test, status, assignee_id AS "assigneeId"`;
     if (!rows.length) return NextResponse.json({ error: 'not found' }, { status: 404 });
     return NextResponse.json({ test: rows[0] });
   } catch (e) {
