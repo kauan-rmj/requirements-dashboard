@@ -2,7 +2,16 @@
 
 import { useState } from 'react';
 import V3Avatar from './V3Avatar';
+import V3Select from './V3Select';
 import { MILESTONE_OWNERS, V3_STATUSES, type V3Status, type V3Test, type V3User } from '@/lib/v3-tests';
+
+type ViewMode = 'padrao' | 'tamanho' | 'nao_validados';
+
+const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
+  { value: 'padrao', label: 'Padrão (barras iguais)' },
+  { value: 'tamanho', label: 'Proporcional · por tamanho' },
+  { value: 'nao_validados', label: 'Proporcional · por não validados' },
+];
 
 const VALIDATED: V3Status[] = ['validado_nao_qa', 'validado_qa'];
 
@@ -24,6 +33,7 @@ interface Hover {
 export default function V3TopicChart({ tests, users }: { tests: V3Test[]; users: V3User[] }) {
   const [hovered, setHovered] = useState<Hover | null>(null);
   const [hoveredPct, setHoveredPct] = useState<string | null>(null);
+  const [view, setView] = useState<ViewMode>('padrao');
 
   const byTopic = new Map<string, Record<string, number>>();
   for (const t of tests) {
@@ -37,17 +47,31 @@ export default function V3TopicChart({ tests, users }: { tests: V3Test[]; users:
     const validated = VALIDATED.reduce((a, s) => a + (counts[s] ?? 0), 0);
     return { name, counts, total, validated, pct: total ? Math.round((validated / total) * 100) : 0 };
   });
+  const NO_MILESTONE = '(sem milestone)';
+  if (view !== 'padrao') {
+    topics.sort((a, b) => {
+      if ((a.name === NO_MILESTONE) !== (b.name === NO_MILESTONE)) return a.name === NO_MILESTONE ? 1 : -1;
+      if (view === 'tamanho') return b.total - a.total;
+      return (b.total - b.validated) - (a.total - a.validated) || b.total - a.total;
+    });
+  }
   const grandTotal = tests.length;
+  const maxTotal = Math.max(1, ...topics.map((t) => t.total));
 
   return (
     <div style={{ background: '#1a1a1a', borderRadius: '10px', border: '1px solid #3a3a3a', overflow: 'hidden' }}>
-      <div style={{ padding: '18px 24px', borderBottom: '1px solid #2a2a2a' }}>
+      <div style={{ padding: '18px 24px', borderBottom: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <div>
         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#e5e5e5', letterSpacing: '-0.01em' }}>
           Testes por milestone
         </h2>
         <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#666' }}>
           Distribuição dos testes por status em cada milestone
         </p>
+        </div>
+        <div style={{ width: '260px', flexShrink: 0 }}>
+          <V3Select value={view} options={VIEW_OPTIONS} onChange={(v) => setView(v as ViewMode)} />
+        </div>
       </div>
 
       <div style={{ padding: '14px 24px', borderBottom: '1px solid #2a2a2a', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
@@ -107,7 +131,7 @@ export default function V3TopicChart({ tests, users }: { tests: V3Test[]; users:
                     <span>{hovered.count} testes</span>
                   </div>
                 )}
-                <div style={{ height: '28px', display: 'flex', borderRadius: '4px', overflow: 'hidden', background: '#111' }}>
+                <div style={{ height: '28px', width: view === 'padrao' ? '100%' : `${(topic.total / maxTotal) * 100}%`, minWidth: '4px', display: 'flex', borderRadius: '4px', overflow: 'hidden', background: '#111' }}>
                   {V3_STATUSES.map((s) => {
                     const count = topic.counts[s.value] ?? 0;
                     const segPct = (count / topic.total) * 100;

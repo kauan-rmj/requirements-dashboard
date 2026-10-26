@@ -14,7 +14,7 @@ const TABS = [
 export default function V3Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { error } = useV3();
-  const wide = pathname.startsWith('/v3/tabela');
+  const wide = pathname === '/v3' || pathname.startsWith('/v3/tabela');
 
   return (
     <div style={{ maxWidth: wide ? 'none' : '1200px', margin: '0 auto', padding: '32px 24px' }}>
