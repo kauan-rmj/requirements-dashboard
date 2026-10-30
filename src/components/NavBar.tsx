@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ListTree, BarChart2, DollarSign, TrendingUp, Users, FlaskConical } from 'lucide-react';
+import { LayoutDashboard, ListTree, BarChart2, DollarSign, TrendingUp, Users, FlaskConical, Paperclip } from 'lucide-react';
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -14,6 +14,7 @@ export default function NavBar() {
     { href: '/team', label: 'Team', icon: Users },
     { href: '/timeline', label: 'Timeline', icon: TrendingUp },
     { href: '/costs', label: 'Costs', icon: DollarSign },
+    { href: '/paperclip', label: '', icon: Paperclip },
   ];
 
   return (
@@ -54,6 +55,7 @@ export default function NavBar() {
             <Link
               key={href}
               href={href}
+              aria-label={label || 'Paperclip'}
               style={{
                 display: 'flex',
                 alignItems: 'center',
