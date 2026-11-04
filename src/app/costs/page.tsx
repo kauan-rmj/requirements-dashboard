@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MONTH_COSTS, BILLING_PER_CONVERSATION } from '@/lib/costs';
+import { MONTH_COSTS, BILLING_PER_CONVERSATION, INFRA_MONTHLY_USD } from '@/lib/costs';
 import MonthlyChart, { type ChartMode } from '@/components/MonthlyChart';
 import DualAxisChart from '@/components/DualAxisChart';
 import ChartModeToggle from '@/components/ChartModeToggle';
@@ -15,7 +15,11 @@ const RANGE_OPTIONS: { label: string; value: number | null }[] = [
 const usd = (v: number, d: number) =>
   v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: d, maximumFractionDigits: d });
 
-type ChartKey = 'total' | 'perRequest' | 'perConversation' | 'responseTime';
+type ChartKey = 'total' | 'perRequest' | 'perConversation' | 'perConversationTotal' | 'responseTime';
+
+type Month = (typeof MONTH_COSTS)[number];
+// Custo total = IA (cost_control) + voz (voice_call_sessions) + infra estimada (GCP + Supabase, constante proporcional ao período coberto).
+const totalCost = (m: Month) => m.cost + m.voice + INFRA_MONTHLY_USD * m.monthShare;
 
 const CHARTS: { key: Exclude<ChartKey, 'total'>; title: string; sub: string; color: string; tooltipLabel: string; axisFormat: (v: number) => string; valueFormat: (v: number) => string; accessor: (m: (typeof MONTH_COSTS)[number]) => number }[] = [
   {
@@ -39,6 +43,16 @@ const CHARTS: { key: Exclude<ChartKey, 'total'>; title: string; sub: string; col
     accessor: (m: (typeof MONTH_COSTS)[number]) => m.cost / m.conv,
   },
   {
+    key: 'perConversationTotal',
+    title: 'Custo total por conversa (IA + voz + infra)',
+    sub: 'Custo de IA + voz + infra estimada (US$ 1.489/mês, constante) ÷ conversas válidas. Infra é estimativa de preço de tabela, não fatura.',
+    color: '#a78bfa',
+    tooltipLabel: 'Custo total / conv.',
+    axisFormat: (v: number) => usd(v, 3),
+    valueFormat: (v: number) => usd(v, 3),
+    accessor: (m: (typeof MONTH_COSTS)[number]) => totalCost(m) / m.conv,
+  },
+  {
     key: 'responseTime',
     title: 'Tempo de resposta médio',
     sub: 'Média de request_control.completion_time por mês, em segundos',
@@ -56,6 +70,7 @@ export default function CostsPage() {
     total: 'line',
     perRequest: 'line',
     perConversation: 'line',
+    perConversationTotal: 'line',
     responseTime: 'line',
   });
   const setMode = (k: ChartKey, m: ChartMode) => setModes((prev) => ({ ...prev, [k]: m }));
@@ -68,7 +83,7 @@ export default function CostsPage() {
           Costs
         </h1>
         <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#555' }}>
-          Monthly platform cost efficiency · USD · Out/26* é parcial (01/10 a 21/10)
+          Monthly platform cost efficiency · USD · Nov/26* é parcial (01/11 a 04/11)
         </p>
       </div>
 
@@ -105,7 +120,7 @@ export default function CostsPage() {
             <div>
               <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo, cobrança e conversas por mês</h2>
               <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
-                Custo (soma de cost_control.cost) no eixo esquerdo, USD. Conversas válidas (sem teste/dev e deletadas) no eixo direito; a cobrança estimada (conversas × $0,20 em média) usa a mesma série e o eixo esquerdo.
+                Custo de IA (soma de cost_control.cost) e custo total (IA + voz de voice_call_sessions + infra GCP/Supabase estimada em US$ 1.489/mês, a preço de tabela) no eixo esquerdo, USD. Conversas válidas (sem teste/dev e deletadas) no eixo direito; a cobrança estimada (conversas × $0,20 em média) usa a mesma série e o eixo esquerdo.
               </p>
             </div>
             <ChartModeToggle mode={modes.total} onChange={(m) => setMode('total', m)} />
@@ -114,9 +129,16 @@ export default function CostsPage() {
             mode={modes.total}
             left={[
               {
-                name: 'Custo total (USD)',
+                name: 'Custo de IA (USD)',
                 color: '#22c55e',
                 points: rows.map((m) => ({ label: m.label, value: m.cost, partial: m.partial })),
+                axisFormat: (v) => usd(v, 0),
+                valueFormat: (v) => usd(v, 0),
+              },
+              {
+                name: 'Custo total: IA + voz + infra est. (USD)',
+                color: '#a78bfa',
+                points: rows.map((m) => ({ label: m.label, value: totalCost(m), partial: m.partial })),
                 axisFormat: (v) => usd(v, 0),
                 valueFormat: (v) => usd(v, 0),
               },
