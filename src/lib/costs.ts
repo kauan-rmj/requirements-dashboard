@@ -1,5 +1,5 @@
 // Source: Supabase tolky-to-v2 (cost_control, request_control, conversations), USD, America/Sao_Paulo.
-// Generated 2026-10-22; Out/26 is partial (01/10 to 21/10).
+// Generated 2026-11-04; Nov/26 is partial (01/11 to 04/11, até ~12h BRT).
 export interface MonthCost {
   label: string;
   cost: number;
@@ -20,7 +20,8 @@ export const MONTH_COSTS: MonthCost[] = [
   { label: 'Jul/26', cost: 7188.144, requests: 1373999, conv: 335243, ctSum: 29503886657, ctCount: 1300005, partial: false },
   { label: 'Ago/26', cost: 10322.692004, requests: 1667804, conv: 358520, ctSum: 37099657034, ctCount: 1615071, partial: false },
   { label: 'Set/26', cost: 6722.060403, requests: 1431180, conv: 286917, ctSum: 15954751559, ctCount: 1396142, partial: false },
-  { label: 'Out/26*', cost: 3000.563527, requests: 934420, conv: 253237, ctSum: 9968278411, ctCount: 912266, partial: true },
+  { label: 'Out/26', cost: 4390.440651, requests: 1300357, conv: 345558, ctSum: 14422901161, ctCount: 1276956, partial: false },
+  { label: 'Nov/26*', cost: 352.276586, requests: 101672, conv: 31464, ctSum: 1218677879, ctCount: 100966, partial: true },
 ];
 
 // Average amount billed per conversation, USD (estimate: billing = conv × BILLING_PER_CONVERSATION).
