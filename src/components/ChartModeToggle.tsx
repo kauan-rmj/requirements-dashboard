@@ -2,21 +2,23 @@
 
 import type { ChartMode } from '@/components/MonthlyChart';
 
-const OPTIONS: { label: string; value: ChartMode }[] = [
+const DEFAULT_OPTIONS: { label: string; value: ChartMode }[] = [
   { label: 'Linhas', value: 'line' },
   { label: 'Barras', value: 'bar' },
 ];
 
-export default function ChartModeToggle({
+export default function ChartModeToggle<M extends string = ChartMode>({
   mode,
   onChange,
+  options = DEFAULT_OPTIONS as unknown as { label: string; value: M }[],
 }: {
-  mode: ChartMode;
-  onChange: (m: ChartMode) => void;
+  mode: M;
+  onChange: (m: M) => void;
+  options?: { label: string; value: M }[];
 }) {
   return (
     <div style={{ display: 'flex', gap: '4px' }}>
-      {OPTIONS.map((option) => {
+      {options.map((option) => {
         const isActive = mode === option.value;
         return (
           <button
