@@ -15,7 +15,7 @@ interface Series {
 interface DualAxisChartProps {
   mode: ChartMode;
   left: Series[]; // share the primary (left) y axis
-  right: Series;
+  right?: Series; // omitted: single-axis chart (left only)
 }
 
 const PAD = { top: 24, right: 64, bottom: 40, left: 60 };
@@ -34,7 +34,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
 
-  const all = [...left, right];
+  const all = right ? [...left, right] : left;
   const drawn = all.filter((s) => !s.scaleOnly);
   const n = left[0]?.points.length ?? 0;
   const isBar = mode === 'bar';
@@ -66,7 +66,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
     return { yMax, yAt: (v: number) => PAD.top + CHART_H - (v / yMax) * CHART_H };
   };
   const L = scaleFor(left);
-  const R = scaleFor([right]);
+  const R = right ? scaleFor([right]) : null;
   const leftColor = left.length === 1 ? left[0].color : '#888';
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 
@@ -153,16 +153,18 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
               <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize={10} fill={leftColor}>
                 {left[0].axisFormat(f * L.yMax)}
               </text>
-              <text x={PAD.left + CHART_W + 6} y={y + 4} textAnchor="start" fontSize={10} fill={right.color}>
-                {right.axisFormat(f * R.yMax)}
-              </text>
+              {right && R && (
+                <text x={PAD.left + CHART_W + 6} y={y + 4} textAnchor="start" fontSize={10} fill={right.color}>
+                  {right.axisFormat(f * R.yMax)}
+                </text>
+              )}
             </g>
           );
         })}
 
         {isBar
-          ? drawn.map((s, j) => renderBars(s, s === right ? R.yAt : L.yAt, (j - drawn.length / 2) * (barW + 1)))
-          : drawn.map((s) => renderLine(s, s === right ? R.yAt : L.yAt))}
+          ? drawn.map((s, j) => renderBars(s, R && s === right ? R.yAt : L.yAt, (j - drawn.length / 2) * (barW + 1)))
+          : drawn.map((s) => renderLine(s, R && s === right ? R.yAt : L.yAt))}
 
         {left[0].points.map((p, i) => (
           <text key={p.label} x={xAt(i)} y={PAD.top + CHART_H + 18} fontSize={10} fill="#666" textAnchor="middle">
@@ -188,7 +190,7 @@ export default function DualAxisChart({ mode, left, right }: DualAxisChartProps)
             ) : (
               <>
                 <line x1={hoverX} y1={PAD.top} x2={hoverX} y2={PAD.top + CHART_H} stroke="#555" strokeWidth={1} strokeDasharray="4,3" pointerEvents="none" />
-                {drawn.map((s) => ({ s, sc: s === right ? R : L })).map(({ s, sc }) =>
+                {drawn.map((s) => ({ s, sc: R && s === right ? R : L })).map(({ s, sc }) =>
                   hidden[s.name] ? null : (
                     <circle key={s.name} cx={hoverX} cy={sc.yAt(s.points[hoverIndex].value)} r={4} fill={s.color} stroke="#111" strokeWidth={1.5} pointerEvents="none" />
                   ),

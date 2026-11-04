@@ -15,6 +15,13 @@ const RANGE_OPTIONS: { label: string; value: number | null }[] = [
 const usd = (v: number, d: number) =>
   v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: d, maximumFractionDigits: d });
 
+type TotalMode = ChartMode | 'adjusted';
+const TOTAL_MODE_OPTIONS: { label: string; value: TotalMode }[] = [
+  { label: 'Linhas', value: 'line' },
+  { label: 'Barras', value: 'bar' },
+  { label: 'Linhas + cobrança ajustada', value: 'adjusted' },
+];
+
 type ChartKey = 'total' | 'perRequest' | 'perConversation' | 'perConversationTotal' | 'responseTime';
 
 type Month = (typeof MONTH_COSTS)[number];
@@ -66,7 +73,7 @@ const CHARTS: { key: Exclude<ChartKey, 'total'>; title: string; sub: string; col
 
 export default function CostsPage() {
   const [months, setMonths] = useState<number | null>(null);
-  const [modes, setModes] = useState<Record<ChartKey, ChartMode>>({
+  const [modes, setModes] = useState<Record<Exclude<ChartKey, 'total'>, ChartMode> & { total: TotalMode }>({
     total: 'line',
     perRequest: 'line',
     perConversation: 'line',
@@ -74,6 +81,7 @@ export default function CostsPage() {
     responseTime: 'line',
   });
   const setMode = (k: ChartKey, m: ChartMode) => setModes((prev) => ({ ...prev, [k]: m }));
+  const adjusted = modes.total === 'adjusted';
   const rows = months === null ? MONTH_COSTS : MONTH_COSTS.slice(-months);
 
   return (
@@ -120,13 +128,13 @@ export default function CostsPage() {
             <div>
               <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#e5e5e5' }}>Custo, cobrança e conversas por mês</h2>
               <p style={{ margin: '4px 0 12px', fontSize: '12px', color: '#555' }}>
-                Custo de IA (soma de cost_control.cost) e custo total (IA + voz de voice_call_sessions + infra GCP/Supabase estimada em US$ 1.489/mês, a preço de tabela) no eixo esquerdo, USD. Conversas válidas (sem teste/dev e deletadas) no eixo direito; a cobrança estimada (conversas × $0,20 em média) usa a mesma série e o eixo esquerdo.
+                Custo de IA (soma de cost_control.cost) e custo total (IA + voz de voice_call_sessions + infra GCP/Supabase estimada em US$ 1.489/mês, a preço de tabela) no eixo esquerdo, USD. Conversas válidas (sem teste/dev e deletadas) no eixo direito; a cobrança estimada (conversas × $0,20 em média) usa a mesma série e o eixo esquerdo. Em \"Linhas + cobrança ajustada\" não há eixo de conversas: a cobrança entra dividida por 10 no eixo de custo, para facilitar ver as variações do custo.
               </p>
             </div>
-            <ChartModeToggle mode={modes.total} onChange={(m) => setMode('total', m)} />
+            <ChartModeToggle<TotalMode> mode={modes.total} options={TOTAL_MODE_OPTIONS} onChange={(m) => setModes((prev) => ({ ...prev, total: m }))} />
           </div>
           <DualAxisChart
-            mode={modes.total}
+            mode={modes.total === 'adjusted' ? 'line' : modes.total}
             left={[
               {
                 name: 'Custo de IA (USD)',
@@ -142,16 +150,24 @@ export default function CostsPage() {
                 axisFormat: (v) => usd(v, 0),
                 valueFormat: (v) => usd(v, 0),
               },
-              {
-                name: 'Cobrança estimada (USD)',
-                color: '#4f8ef7',
-                scaleOnly: true, // same shape as conversations; drawn as the 'Conversas/Cobrança' series
-                points: rows.map((m) => ({ label: m.label, value: m.conv * BILLING_PER_CONVERSATION, partial: m.partial })),
-                axisFormat: (v) => usd(v, 0),
-                valueFormat: (v) => usd(v, 0),
-              },
+              adjusted
+                ? {
+                    name: 'Cobrança(/10)',
+                    color: '#4f8ef7',
+                    points: rows.map((m) => ({ label: m.label, value: (m.conv * BILLING_PER_CONVERSATION) / 10, partial: m.partial })),
+                    axisFormat: (v) => usd(v, 0),
+                    valueFormat: (v) => usd(v, 0),
+                  }
+                : {
+                    name: 'Cobrança estimada (USD)',
+                    color: '#4f8ef7',
+                    scaleOnly: true, // same shape as conversations; drawn as the 'Conversas/Cobrança' series
+                    points: rows.map((m) => ({ label: m.label, value: m.conv * BILLING_PER_CONVERSATION, partial: m.partial })),
+                    axisFormat: (v) => usd(v, 0),
+                    valueFormat: (v) => usd(v, 0),
+                  },
             ]}
-            right={{
+            right={adjusted ? undefined : {
               name: 'Conversas/Cobrança',
               color: '#4f8ef7',
               points: rows.map((m) => ({ label: m.label, value: m.conv, partial: m.partial })),
